@@ -213,23 +213,29 @@ namespace Escape.EditorAutomation
 
         static void BuildTilemaps(LevelDefinition def)
         {
-            var ruleTile = AssetDatabase.LoadAssetAtPath<TileBase>(RuleTilePath);
-            if (ruleTile == null)
-                Debug.LogError("[LevelBuilder] GrottoRuleTile missing");
+            // The RuleTile's rules resolve solid interiors to its empty
+            // default (no collision, dark visual) — paint with the concrete
+            // Grotto tiles instead, like the hand-built levels do:
+            // grass-top where exposed above, speckled interior elsewhere.
+            const string tilesetFolder = "Assets/GrottoEscapeArtwork/Sprites/Tileset";
+            var topTile = AssetDatabase.LoadAssetAtPath<TileBase>($"{tilesetFolder}/grotto-tiles_25.asset");
+            var fillTile = AssetDatabase.LoadAssetAtPath<TileBase>($"{tilesetFolder}/grotto-tiles_33.asset");
+            if (topTile == null || fillTile == null)
+                Debug.LogError("[LevelBuilder] grotto tile assets missing");
+            var ruleTile = fillTile;
 
             GameObject gridObj = new GameObject(GenPrefix + "Grid", typeof(Grid));
 
-            // Ground.
+            // Ground — layer must match the hand-built levels ("Platform"),
+            // which is what player physics and ground raycasts collide with.
             Tilemap ground = NewTilemap(gridObj, "Ground");
-            int levelLayer = LayerMask.NameToLayer("Level");
+            int levelLayer = LayerMask.NameToLayer("Platform");
             if (levelLayer >= 0)
                 ground.gameObject.layer = levelLayer;
-            var groundCollider = ground.gameObject.AddComponent<TilemapCollider2D>();
-            var rb = ground.gameObject.AddComponent<Rigidbody2D>();
-            rb.bodyType = RigidbodyType2D.Static;
-            var composite = ground.gameObject.AddComponent<CompositeCollider2D>();
-            groundCollider.usedByComposite = true;
-            composite.geometryType = CompositeCollider2D.GeometryType.Polygons;
+            // Plain per-tile collider — matches the proven legacy levels.
+            // (A CompositeCollider2D generated zero paths at runtime here:
+            // players fell straight through. Not worth the optimization.)
+            ground.gameObject.AddComponent<TilemapCollider2D>();
 
             // Decoration (non-colliding).
             Tilemap deco = NewTilemap(gridObj, "Decoration");
@@ -256,7 +262,11 @@ namespace Escape.EditorAutomation
                 {
                     char c = x < width ? def.TileAt(x, y) : '.';
                     if (c == '#')
-                        ground.SetTile(new Vector3Int(x, y, 0), ruleTile);
+                    {
+                        bool exposedAbove = def.TileAt(x, y + 1) != '#';
+                        ground.SetTile(new Vector3Int(x, y, 0),
+                            exposedAbove ? topTile : fillTile);
+                    }
                     else if (c == 'D' && ruleTile != null)
                         deco.SetTile(new Vector3Int(x, y, 0), ruleTile);
 
@@ -399,9 +409,9 @@ namespace Escape.EditorAutomation
                 mover.to = World(mp.to);
                 mover.speed = mp.speed > 0.01f ? mp.speed : 2f;
 
-                int levelLayer = LayerMask.NameToLayer("Level");
-                if (levelLayer >= 0)
-                    platform.layer = levelLayer;
+                int platformLayer = LayerMask.NameToLayer("Platform");
+                if (platformLayer >= 0)
+                    platform.layer = platformLayer;
 
                 if (mp.isLavaRiserRide)
                 {
