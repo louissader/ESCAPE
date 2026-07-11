@@ -1,0 +1,10 @@
+{
+  "frameWidth": 8,
+  "frameHeight": 8,
+  "frames": [
+    {
+      "name": "lava_bubble",
+      "index": 0
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace IndieMarc.Platformer
 {
@@ -9,50 +9,57 @@ namespace IndieMarc.Platformer
         public Sprite leverLeft;
         public Sprite leverRight;
 
+        // B10: serialized multi-target replaces the find-one-bridge-by-tag
+        // assumption so levels can wire several lever/bridge pairs.
+        [SerializeField] private Bridge[] targets;
+
+        // Re-trigger guard: brushing the trigger twice must not instantly
+        // revert the bridge.
+        [SerializeField] private float toggleCooldown = 0.75f;
+
         private SpriteRenderer spriteRenderer;
-        private BoxCollider2D boxCollider;
         private LeverState state = LeverState.Left;
-        private Bridge bridgeToActivate;
+        private float lastToggleTime = -999f;
 
         void Start()
         {
             spriteRenderer = GetComponent<SpriteRenderer>();
-            boxCollider = GetComponent<BoxCollider2D>();
-            boxCollider.isTrigger = true;
+            GetComponent<BoxCollider2D>().isTrigger = true;
             spriteRenderer.sprite = leverLeft;
 
-            // Find the bridge by tag
-            GameObject bridgeObj = GameObject.FindGameObjectWithTag("Bridge");
-            if (bridgeObj != null)
+            // Legacy fallback for scenes not yet migrated to serialized refs.
+            if (targets == null || targets.Length == 0)
             {
-                bridgeToActivate = bridgeObj.GetComponent<Bridge>();
-                if (bridgeToActivate == null)
-                {
-                    Debug.LogError("Bridge object found but missing Bridge component!");
-                }
-            }
-            else
-            {
-                Debug.LogError("No object with Bridge tag found!");
+                GameObject bridgeObj = GameObject.FindGameObjectWithTag("Bridge");
+                if (bridgeObj != null && bridgeObj.TryGetComponent(out Bridge bridge))
+                    targets = new[] { bridge };
             }
         }
 
         void OnTriggerEnter2D(Collider2D collider)
         {
             if (collider.CompareTag("Player") || collider.CompareTag("PlayerTwo"))
-            {
                 ToggleLever();
-            }
         }
 
         private void ToggleLever()
         {
+            if (Time.time - lastToggleTime < toggleCooldown)
+                return;
+            lastToggleTime = Time.time;
+
             state = state == LeverState.Left ? LeverState.Right : LeverState.Left;
             spriteRenderer.sprite = state == LeverState.Left ? leverLeft : leverRight;
+            AudioManager.PlaySfx("lever");
+            AudioManager.PlaySfx("bridge");
 
-            if (bridgeToActivate != null)
+            bool active = state == LeverState.Right;
+            if (targets == null)
+                return;
+            foreach (Bridge bridge in targets)
             {
-                bridgeToActivate.SetActive(state == LeverState.Right);
+                if (bridge != null)
+                    bridge.SetActive(active);
             }
         }
     }

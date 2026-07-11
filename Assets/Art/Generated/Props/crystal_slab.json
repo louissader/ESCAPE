@@ -1,0 +1,22 @@
+{
+  "frameWidth": 32,
+  "frameHeight": 16,
+  "frames": [
+    {
+      "name": "crystal_slab_0",
+      "index": 0
+    },
+    {
+      "name": "crystal_slab_1",
+      "index": 1
+    },
+    {
+      "name": "crystal_slab_2",
+      "index": 2
+    },
+    {
+      "name": "crystal_slab_3",
+      "index": 3
+    }
+  ]
+}

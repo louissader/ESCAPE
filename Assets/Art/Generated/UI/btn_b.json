@@ -1,0 +1,10 @@
+{
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frames": [
+    {
+      "name": "btn_b",
+      "index": 0
+    }
+  ]
+}

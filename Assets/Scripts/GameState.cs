@@ -1,27 +1,25 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Events;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
 
 using IndieMarc.Platformer;
 
+/// <summary>
+/// Per-level orchestrator. Event-driven off player deaths (no is_dead
+/// polling); scene navigation via SceneRouter; unlocks via SaveSystem.
+/// Phase 5 replaces the one-death-fails rule with the HP/checkpoint system.
+/// </summary>
 public class GameState : MonoBehaviour
 {
-    public GameObject restartButton;
     private PlayerCharacterOne player1;
     private PlayerCharacterTwo player2;
 
     public int dragonCount;
-    public int unlockedCount;
 
-    private bool player1dead = false;
-    private bool player2dead = false;
     private bool gameOver = false;
     private bool levelCompleteProcessed = false;
-    private bool gameCompleteTriggered = false;
+    private bool gameOverSequenceStarted = false;
 
     public Image gameOverOverlay;
     public Image levelCompleteOverlay;
@@ -33,25 +31,22 @@ public class GameState : MonoBehaviour
     public TextMeshProUGUI levelCompleteTextTMP;
     public TextMeshProUGUI gameCompleteTextTMP;
     private Color overlayColor;
-    private Color wonOverlayColor;
     private Color textColor;
-
-    public GameObject Bridge;
-
-    private bool gameOverSequenceStarted = false;
 
     void Start()
     {
         player1 = GameObject.Find("Player1")?.GetComponent<PlayerCharacterOne>();
         player2 = GameObject.Find("Player2")?.GetComponent<PlayerCharacterTwo>();
 
+        if (player1 != null)
+            player1.onDeath += OnPlayerDeath;
+        if (player2 != null)
+            player2.onDeath += OnPlayerDeath;
+
         dragonCount = 0;
         gameOver = false;
+        CheckpointManager.ResetForLevel();
 
-        if (Bridge != null)
-            Bridge.SetActive(false);
-
-        // Initialize overlays to be invisible and inactive
         if (gameOverOverlay != null)
         {
             Color startColor = gameOverOverlay.color;
@@ -66,48 +61,68 @@ public class GameState : MonoBehaviour
             textStartColor.a = 0f;
             gameOverTextTMP.color = textStartColor;
         }
+    }
 
-        // If you want to use the "LevelMenu" tag to ensure the level menu exists:
-        // (Optional) Check if there's a LevelMenu object in the scene
-        GameObject levelMenuObject = GameObject.FindGameObjectWithTag("LevelMenu");
-        if (levelMenuObject == null)
-        {
-            Debug.LogWarning("No object with 'LevelMenu' tag found in the scene.");
-        }
+    void OnDestroy()
+    {
+        if (player1 != null)
+            player1.onDeath -= OnPlayerDeath;
+        if (player2 != null)
+            player2.onDeath -= OnPlayerDeath;
     }
 
     void Update()
     {
-        if (player1 != null && player1.is_dead)
-            player1dead = true;
-        if (player2 != null && player2.is_dead)
-            player2dead = true;
-
-        // If either player is dead -> game over
-        if ((player1dead || player2dead) && !gameOver && !levelCompleteProcessed && !gameCompleteTriggered)
-        {
-            gameOver = true;
-        }
-
-
-        if (gameOver && !gameOverSequenceStarted)
-        {
-            gameOverSequenceStarted = true;
-            StartCoroutine(GameOverWaitAndLoadScene());
-        }
-
-        // If all dragons collected and not processed yet -> level complete
         if (dragonCount >= 2 && !levelCompleteProcessed && !gameOver)
         {
-            Debug.Log("Dragon Count detected 2. Level complete. Calling UpdateLockedLevels...");
             levelCompleteProcessed = true;
-            UpdateLockedLevels();
+            OnLevelComplete();
         }
     }
 
-    private IEnumerator GameOverWaitAndLoadScene()
+    private void OnPlayerDeath()
     {
-        // Add null checks before using gameOverOverlay and gameOverTextTMP
+        // Phase 5 death rule: a single death respawns at a checkpoint; the
+        // level fails only when both in-scene characters are dead at once.
+        // (Exit-absorbed characters are inactive, not dead — never counted.)
+        bool p1Dead = player1 != null && player1.gameObject.activeSelf && player1.IsDead();
+        bool p2Dead = player2 != null && player2.gameObject.activeSelf && player2.IsDead();
+
+        if (p1Dead && p2Dead)
+            TriggerGameOver();
+    }
+
+    public void TriggerGameOver()
+    {
+        if (levelCompleteProcessed)
+            return;
+
+        gameOver = true;
+        if (!gameOverSequenceStarted)
+        {
+            gameOverSequenceStarted = true;
+            StartCoroutine(GameOverWaitAndReload());
+        }
+    }
+
+    public void HandleLavaCollision(GameObject player)
+    {
+        if (player.CompareTag("Player") || player.CompareTag("PlayerTwo"))
+            TriggerGameOver();
+    }
+
+    private void OnLevelComplete()
+    {
+        int level = SceneRouter.CurrentLevelNumber();
+        if (level > 0)
+            SaveSystem.OnLevelCompleted(level);
+        CrystalTracker.RecordStars(level);
+        AudioManager.PlaySfx("level_complete");
+        StartCoroutine(LevelCompleteWaitAndLoad());
+    }
+
+    private IEnumerator GameOverWaitAndReload()
+    {
         while ((gameOverOverlay != null && gameOverOverlay.color.a < maxAlpha) ||
                (gameOverTextTMP != null && gameOverTextTMP.color.a < 1.0f))
         {
@@ -116,22 +131,21 @@ public class GameState : MonoBehaviour
         }
 
         yield return new WaitForSeconds(2.0f);
-        // Load scene index 2 for level menu
-        SceneManager.LoadScene(2);
+        // B3: failing a level restarts it instead of dumping to level select.
+        SceneRouter.ReloadCurrentLevel();
     }
 
-    public void TriggerGameOver()
+    private IEnumerator LevelCompleteWaitAndLoad()
     {
-        if (!levelCompleteProcessed && !gameCompleteTriggered)
+        while ((levelCompleteOverlay != null && levelCompleteOverlay.color.a < maxAlpha) ||
+               (levelCompleteTextTMP != null && levelCompleteTextTMP.color.a < 1.0f))
         {
-            gameOver = true;
-
-            if (!gameOverSequenceStarted)
-            {
-                gameOverSequenceStarted = true;
-                StartCoroutine(GameOverWaitAndLoadScene());
-            }
+            DisplayLevelCompleteScreen();
+            yield return null;
         }
+
+        yield return new WaitForSeconds(2.0f);
+        SceneRouter.LoadLevelSelect();
     }
 
     private void DisplayGameOverScreen()
@@ -156,9 +170,11 @@ public class GameState : MonoBehaviour
 
     private void DisplayLevelCompleteScreen()
     {
-        // Null checks for levelCompleteOverlay and levelCompleteTextTMP
         if (levelCompleteOverlay != null)
         {
+            if (!levelCompleteOverlay.gameObject.activeSelf)
+                levelCompleteOverlay.gameObject.SetActive(true);
+
             overlayColor = levelCompleteOverlay.color;
             overlayColor.a = Mathf.Clamp(overlayColor.a + fadeSpeed * Time.deltaTime, 0, maxAlpha);
             levelCompleteOverlay.color = overlayColor;
@@ -172,110 +188,7 @@ public class GameState : MonoBehaviour
         }
     }
 
-    public void HandleLavaCollision(GameObject player)
-    {
-        if (player.CompareTag("Player") || player.CompareTag("PlayerTwo") || player.CompareTag("PlayerTag"))
-        {
-            if (player.CompareTag("Player") || player.CompareTag("PlayerTag"))
-                player1dead = true;
-            else if (player.CompareTag("PlayerTwo"))
-                player2dead = true;
-
-            gameOver = true;
-            if (!gameOverSequenceStarted)
-            {
-                gameOverSequenceStarted = true;
-                StartCoroutine(GameOverWaitAndLoadScene());
-            }
-        }
-    }
-
-    private void DisplayGameCompleteScreen()
-    {
-        if (gameCompleteOverlay != null)
-        {
-            wonOverlayColor = gameCompleteOverlay.color;
-            wonOverlayColor.a = Mathf.Clamp(wonOverlayColor.a + fadeSpeed * Time.deltaTime, 0, maxAlpha);
-            gameCompleteOverlay.color = wonOverlayColor;
-        }
-
-        if (gameCompleteTextTMP != null)
-        {
-            textColor = gameCompleteTextTMP.color;
-            textColor.a = Mathf.Clamp(textColor.a + 2 * fadeSpeed * Time.deltaTime, 0, 1);
-            gameCompleteTextTMP.color = textColor;
-        }
-    }
-
-    public void BackToLevelMenu()
-    {
-        StartCoroutine(WaitAndLoadScene());
-    }
-
-    public void BackToMainMenu()
-    {
-        SceneManager.LoadScene(0);
-    }
-
-    private IEnumerator WaitAndLoadScene()
-    {
-        // Add null checks for levelCompleteOverlay and levelCompleteTextTMP
-        while ((levelCompleteOverlay != null && levelCompleteOverlay.color.a < maxAlpha) ||
-               (levelCompleteTextTMP != null && levelCompleteTextTMP.color.a < 1.0f))
-        {
-            DisplayLevelCompleteScreen();
-            yield return null;
-        }
-
-        Debug.Log("Level complete screen fully displayed. Transitioning to level menu...");
-        yield return new WaitForSeconds(2.0f);
-
-        // Load scene 2 for level menu
-        SceneManager.LoadScene(2);
-    }
-
-    private IEnumerator GameCompleteBackToMenu()
-    {
-        while ((gameCompleteOverlay != null && gameCompleteOverlay.color.a < maxAlpha) ||
-               (gameCompleteTextTMP != null && gameCompleteTextTMP.color.a < 1.0f))
-        {
-            DisplayGameCompleteScreen();
-            yield return null;
-        }
-
-        Debug.Log("Game complete screen fully displayed. Transitioning to main menu...");
-        yield return new WaitForSeconds(2.0f);
-        BackToMainMenu();
-    }
-
-    public void UpdateLockedLevels()
-    {
-        unlockedCount = PlayerPrefs.GetInt("unlockedCount", 0);
-        unlockedCount++;
-        Debug.Log("Updated unlockedCount to: " + unlockedCount);
-
-        PlayerPrefs.SetInt("unlockedCount", unlockedCount);
-        PlayerPrefs.Save();
-
-        /*
-        if (unlockedCount == 5)
-        {
-            Debug.Log("Game complete detected. Starting GameCompleteBackToMenu...");
-            StartCoroutine(GameCompleteBackToMenu());
-        }
-        else
-        {
-            DisplayLevelCompleteScreen();
-            BackToLevelMenu();
-        }
-        */
-        DisplayLevelCompleteScreen();
-        BackToLevelMenu();
-
-    }
-
-    public void RestartButton()
-    {
-        SceneManager.LoadScene(2);
-    }
+    public void BackToLevelMenu() { SceneRouter.LoadLevelSelect(); }
+    public void BackToMainMenu() { SceneRouter.LoadMainMenu(); }
+    public void RestartButton() { SceneRouter.ReloadCurrentLevel(); }
 }

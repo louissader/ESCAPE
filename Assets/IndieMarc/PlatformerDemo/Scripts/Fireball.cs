@@ -1,37 +1,84 @@
-using System.Collections;
 using UnityEngine;
-using IndieMarc.Platformer; // Add this
+using IndieMarc.Platformer;
 
+/// <summary>
+/// Shared projectile for players and enemies, disambiguated by owner (B14 —
+/// previously bats were unkillable and enemy shots dealt no damage because
+/// this trigger only handled Ghost and Bat waited for collision events that
+/// triggers never send).
+///
+/// Player-owned: kills anything implementing IDamageableEnemy.
+/// Enemy-owned: deals damage to players.
+/// Both: die against solid world geometry.
+/// </summary>
 public class Fireball : MonoBehaviour
 {
-    public float speed = 12f; // Speed of the fireball
-    public float lifetime = 5f; // Time before the fireball is destroyed
+    public enum Owner { Player, Enemy }
+
+    public Owner owner = Owner.Player;
+    public float speed = 12f;
+    public float lifetime = 5f;
+    public float enemyDamage = 20f;
 
     private Rigidbody2D rb;
 
     void Start()
     {
-        // Destroy the fireball after its lifetime
         Destroy(gameObject, lifetime);
 
-        // Get the Rigidbody2D component
         rb = GetComponent<Rigidbody2D>();
-
-        // Set the fireball's velocity
-        if (rb != null)
-        {
+        // Spawners that aim (bats) set velocity themselves; the player's
+        // straight shot inherits facing from spawn rotation.
+        if (rb != null && rb.velocity.sqrMagnitude < 0.01f)
             rb.velocity = transform.right * speed;
-        }
     }
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        Ghost ghost = other.GetComponent<Ghost>(); // Check if the collided object is a Ghost
-        if (ghost != null)
+        if (other.isTrigger)
+            return; // pickups, levers, other projectiles
+
+        if (owner == Owner.Player)
         {
-            ghost.DestroySelf(); // Destroy the ghost
-            Destroy(gameObject); // Destroy the fireball
-            Debug.Log("[Fireball] Fireball destroyed the ghost.");
+            IDamageableEnemy enemy = other.GetComponent<IDamageableEnemy>();
+            if (enemy != null)
+            {
+                enemy.Die();
+                Explode();
+                return;
+            }
+            // Never hurts players (including the shooter standing at spawn).
+            if (other.CompareTag("Player") || other.CompareTag("PlayerTwo"))
+                return;
         }
+        else
+        {
+            PlayerCharacterOne p1 = other.GetComponent<PlayerCharacterOne>();
+            if (p1 != null)
+            {
+                p1.TakeDamage(enemyDamage);
+                Explode();
+                return;
+            }
+            PlayerCharacterTwo p2 = other.GetComponent<PlayerCharacterTwo>();
+            if (p2 != null)
+            {
+                p2.TakeDamage(enemyDamage);
+                Explode();
+                return;
+            }
+            if (other.GetComponent<IDamageableEnemy>() != null)
+                return; // enemy shots pass through enemies
+        }
+
+        // Solid world geometry stops everything else.
+        Explode();
+    }
+
+    void Explode()
+    {
+        AudioManager.PlaySfx("fireball_impact");
+        // Phase 4 hooks impact particles here.
+        Destroy(gameObject);
     }
 }

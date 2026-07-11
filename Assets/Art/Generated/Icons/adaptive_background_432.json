@@ -1,0 +1,10 @@
+{
+  "frameWidth": 432,
+  "frameHeight": 432,
+  "frames": [
+    {
+      "name": "adaptive_background",
+      "index": 0
+    }
+  ]
+}

@@ -5,112 +5,94 @@ namespace IndieMarc.Platformer
 {
     [RequireComponent(typeof(Rigidbody2D))]
     [RequireComponent(typeof(BoxCollider2D))]
-    public class Ghost : MonoBehaviour
+    public class Ghost : MonoBehaviour, IDamageableEnemy
     {
         [Header("Movement Settings")]
-        public float moveRange = 3f; // Range of random floating movement
-        public float moveSpeed = 1f; // Speed at which the ghost moves
+        public float moveRange = 3f;
+        public float moveSpeed = 1f;
 
-        [Header("Player References")]
-        public Transform playerCharacterOne; // Reference to Player 1
-        public Transform playerCharacterTwo; // Reference to Player 2
+        [Header("Contact")]
+        public float contactDamage = 30f;
 
-        [Header("Fireball Settings")]
-        public float fireballImmunityDuration = 0.1f; // Temporary immunity duration after spawning
+        private Vector3 startPosition;
+        private Rigidbody2D rigidBody;
+        private Vector3 currentTargetPosition;
 
-        private Vector3 startPosition; // Initial position of the ghost
-        private GameState gameState; // Reference to the GameState script
-        private Rigidbody2D rigidBody; // Rigidbody2D for movement
-        private BoxCollider2D boxCollider; // BoxCollider2D for collisions
-        private Vector3 currentTargetPosition; // Current target position for floating
-
-        private bool isImmuneToFireball = false; // Whether the ghost is immune to fireball
+        public System.Action onDeath;  // Phase 4: dissolve/poof FX
 
         void Awake()
         {
             rigidBody = GetComponent<Rigidbody2D>();
-            boxCollider = GetComponent<BoxCollider2D>();
         }
 
         void Start()
         {
-            // Initialize variables
             startPosition = transform.position;
-            gameState = FindObjectOfType<GameState>();
 
-            // Configure Rigidbody and Collider
             rigidBody.bodyType = RigidbodyType2D.Kinematic;
             rigidBody.gravityScale = 0;
-            boxCollider.isTrigger = false;
+            GetComponent<BoxCollider2D>().isTrigger = false;
 
-            // Start floating and temporary fireball immunity
             StartCoroutine(FloatRandomly());
-            StartCoroutine(TemporaryImmunityToFireball());
         }
 
         void FixedUpdate()
         {
-            // Move towards the current target position
             if (currentTargetPosition != Vector3.zero)
             {
-                Vector3 newPosition = Vector3.MoveTowards(transform.position, currentTargetPosition, moveSpeed * Time.fixedDeltaTime);
+                Vector3 newPosition = Vector3.MoveTowards(
+                    transform.position, currentTargetPosition, moveSpeed * Time.fixedDeltaTime);
                 rigidBody.MovePosition(newPosition);
 
-                // Reset target if close enough
                 if (Vector3.Distance(transform.position, currentTargetPosition) < 0.1f)
-                {
                     currentTargetPosition = Vector3.zero;
-                }
             }
         }
 
-        private void OnCollisionEnter2D(Collision2D collision)
+        void OnCollisionEnter2D(Collision2D collision)
         {
-            if (collision.gameObject.CompareTag("Player") || collision.gameObject.CompareTag("PlayerTwo"))
-            {
-                // Trigger game over if colliding with a player
-                Debug.Log("[Ghost] Collided with Player. Triggering Game Over.");
-                gameState?.TriggerGameOver();
-            }
-
-            if (collision.gameObject.CompareTag("Fireball") && !isImmuneToFireball)
-            {
-                // Destroy ghost if hit by a fireball and not immune
-                DestroySelf();
-            }
+            DealContactDamage(collision);
         }
 
-        public void DestroySelf()
+        void OnCollisionStay2D(Collision2D collision)
         {
-            Debug.Log("[Ghost] Ghost destroyed.");
+            // Player i-frames (1s) throttle this to one hit per second.
+            DealContactDamage(collision);
+        }
+
+        void DealContactDamage(Collision2D collision)
+        {
+            if (collision.gameObject.CompareTag("Player"))
+                collision.gameObject.GetComponent<PlayerCharacterOne>()?.TakeDamage(contactDamage);
+            else if (collision.gameObject.CompareTag("PlayerTwo"))
+                collision.gameObject.GetComponent<PlayerCharacterTwo>()?.TakeDamage(contactDamage);
+        }
+
+        public void Die()
+        {
+            AudioManager.PlaySfx("enemy_poof");
+            onDeath?.Invoke();
             Destroy(gameObject);
         }
 
-        private IEnumerator FloatRandomly()
+        /// <summary>Kept for legacy scene wiring; routes to Die().</summary>
+        public void DestroySelf()
+        {
+            Die();
+        }
+
+        IEnumerator FloatRandomly()
         {
             while (true)
             {
-                // Generate a random target position within the movement range
                 Vector3 randomOffset = new Vector3(
                     Random.Range(-moveRange, moveRange),
                     Random.Range(-moveRange, moveRange),
                     0f
                 );
-
                 currentTargetPosition = startPosition + randomOffset;
-
-                // Wait before selecting a new target
                 yield return new WaitForSeconds(0.5f);
             }
-        }
-
-        private IEnumerator TemporaryImmunityToFireball()
-        {
-            isImmuneToFireball = true;
-            //Debug.Log("[Ghost] Immune to fireball for a short time.");
-            yield return new WaitForSeconds(fireballImmunityDuration);
-            isImmuneToFireball = false;
-            //Debug.Log("[Ghost] Vulnerable to fireball.");
         }
     }
 }

@@ -196,7 +196,7 @@ MonoBehaviour:
   moveRange: 3
   moveSpeed: 3
   fireballPrefab: {fileID: 162026, guid: 7e29bfda6ae9b41179eef7f4860e49ac, type: 3}
-  fireballSpeed: 5
-  initialShootDelay: 0.1
-  shootInterval: 0.1
-  shootRange: 10
+  fireballSpeed: 6
+  initialShootDelay: 1.5
+  shootInterval: 2.5
+  shootRange: 12

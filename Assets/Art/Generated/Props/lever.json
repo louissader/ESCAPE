@@ -1,0 +1,22 @@
+{
+  "frameWidth": 16,
+  "frameHeight": 16,
+  "frames": [
+    {
+      "name": "lever_left",
+      "index": 0
+    },
+    {
+      "name": "lever_tween_a",
+      "index": 1
+    },
+    {
+      "name": "lever_tween_b",
+      "index": 2
+    },
+    {
+      "name": "lever_right",
+      "index": 3
+    }
+  ]
+}

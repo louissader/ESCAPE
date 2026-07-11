@@ -1,0 +1,54 @@
+using UnityEngine;
+
+/// <summary>Optional collectible: 3 per level drive the star rating.</summary>
+[RequireComponent(typeof(BoxCollider2D))]
+public class Crystal : MonoBehaviour
+{
+    void Awake()
+    {
+        GetComponent<BoxCollider2D>().isTrigger = true;
+        CrystalTracker.RegisterInLevel();
+    }
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (!other.CompareTag("Player") && !other.CompareTag("PlayerTwo"))
+            return;
+        CrystalTracker.Collect();
+        AudioManager.PlaySfx("crystal");
+        Destroy(gameObject);
+    }
+}
+
+/// <summary>Static per-level crystal tally. GameState records stars on win.</summary>
+public static class CrystalTracker
+{
+    public static int Collected { get; private set; }
+    public static int Total { get; private set; }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void Hook()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += (_, __) =>
+        {
+            Collected = 0;
+            Total = 0;
+        };
+    }
+
+    public static void RegisterInLevel()
+    {
+        Total++;
+    }
+
+    public static void Collect()
+    {
+        Collected = Mathf.Min(Collected + 1, Total);
+    }
+
+    public static void RecordStars(int levelNumber)
+    {
+        if (levelNumber > 0 && Total > 0)
+            SaveSystem.RecordStars(levelNumber, Collected);
+    }
+}

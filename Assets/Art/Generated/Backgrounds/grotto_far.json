@@ -1,0 +1,10 @@
+{
+  "frameWidth": 640,
+  "frameHeight": 360,
+  "frames": [
+    {
+      "name": "grotto_far",
+      "index": 0
+    }
+  ]
+}

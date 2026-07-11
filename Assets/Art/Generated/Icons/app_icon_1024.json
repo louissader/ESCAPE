@@ -1,0 +1,10 @@
+{
+  "frameWidth": 1024,
+  "frameHeight": 1024,
+  "frames": [
+    {
+      "name": "app_icon",
+      "index": 0
+    }
+  ]
+}

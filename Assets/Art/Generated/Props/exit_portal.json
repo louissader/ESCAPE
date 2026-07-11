@@ -1,0 +1,22 @@
+{
+  "frameWidth": 16,
+  "frameHeight": 32,
+  "frames": [
+    {
+      "name": "portal_0",
+      "index": 0
+    },
+    {
+      "name": "portal_1",
+      "index": 1
+    },
+    {
+      "name": "portal_2",
+      "index": 2
+    },
+    {
+      "name": "portal_3",
+      "index": 3
+    }
+  ]
+}

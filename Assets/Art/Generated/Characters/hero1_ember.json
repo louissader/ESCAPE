@@ -1,0 +1,78 @@
+{
+  "frameWidth": 16,
+  "frameHeight": 24,
+  "frames": [
+    {
+      "name": "idle_0",
+      "index": 0
+    },
+    {
+      "name": "idle_1",
+      "index": 1
+    },
+    {
+      "name": "walk_0",
+      "index": 2
+    },
+    {
+      "name": "walk_1",
+      "index": 3
+    },
+    {
+      "name": "walk_2",
+      "index": 4
+    },
+    {
+      "name": "walk_3",
+      "index": 5
+    },
+    {
+      "name": "jump_0",
+      "index": 6
+    },
+    {
+      "name": "fall_0",
+      "index": 7
+    },
+    {
+      "name": "crouch_0",
+      "index": 8
+    },
+    {
+      "name": "hurt_0",
+      "index": 9
+    },
+    {
+      "name": "death_0",
+      "index": 10
+    },
+    {
+      "name": "death_1",
+      "index": 11
+    },
+    {
+      "name": "death_2",
+      "index": 12
+    },
+    {
+      "name": "death_3",
+      "index": 13
+    },
+    {
+      "name": "win_0",
+      "index": 14
+    },
+    {
+      "name": "win_1",
+      "index": 15
+    },
+    {
+      "name": "shoot_0",
+      "index": 16
+    },
+    {
+      "name": "shoot_1",
+      "index": 17
+    }
+  ]
+}

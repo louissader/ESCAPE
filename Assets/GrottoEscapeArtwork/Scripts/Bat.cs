@@ -5,104 +5,159 @@ namespace IndieMarc.Platformer
 {
     [RequireComponent(typeof(Rigidbody2D))]
     [RequireComponent(typeof(BoxCollider2D))]
-    public class Bat : MonoBehaviour
+    public class Bat : MonoBehaviour, IDamageableEnemy
     {
         [Header("Movement Settings")]
         public float moveRange = 3f;
         public float moveSpeed = 1f;
 
         [Header("Shooting Settings")]
+        public bool canShoot = true;   // false = contact-only variant (L1 teaches bats before the player can shoot back)
         public GameObject fireballPrefab;
-        public float fireballSpeed = 8f;  // Increased speed
-        public float initialShootDelay = 0.1f;  // Very small initial delay
-        public float shootInterval = 0.5f;  // Decreased interval
-        public float shootRange = 20f;  // Increased range
+        public float fireballSpeed = 6f;
+        public float initialShootDelay = 1.5f;
+        public float shootInterval = 2.5f;   // B9: was 0.5s x2 players = projectile flood
+        public float shootRange = 12f;       // world units
+        public int maxLiveFireballs = 3;
+
+        [Header("Contact")]
+        public float contactDamage = 30f;
 
         private Vector3 startPosition;
-        private GameState gameState;
         private Rigidbody2D rigidBody;
-        private BoxCollider2D boxCollider;
         private Vector3 currentTargetPosition;
+        private int liveFireballs;
+
+        public System.Action onTelegraph;  // Phase 4: wind-up flash before a shot
+        public System.Action onDeath;      // Phase 4: dissolve/poof FX
 
         void Start()
         {
             startPosition = transform.position;
-            gameState = FindObjectOfType<GameState>();
 
             rigidBody = GetComponent<Rigidbody2D>();
             rigidBody.bodyType = RigidbodyType2D.Kinematic;
             rigidBody.gravityScale = 0;
-
-            boxCollider = GetComponent<BoxCollider2D>();
-            boxCollider.isTrigger = false;
+            GetComponent<BoxCollider2D>().isTrigger = false;
 
             StartCoroutine(FloatRandomly());
-            StartCoroutine(ShootFireballs());
+            if (canShoot)
+                StartCoroutine(ShootLoop());
         }
 
         void FixedUpdate()
         {
-            // Move towards current target position
             if (currentTargetPosition != Vector3.zero)
             {
-                Vector3 newPosition = Vector3.MoveTowards(transform.position, currentTargetPosition, moveSpeed * Time.fixedDeltaTime);
+                Vector3 newPosition = Vector3.MoveTowards(
+                    transform.position, currentTargetPosition, moveSpeed * Time.fixedDeltaTime);
                 rigidBody.MovePosition(newPosition);
 
                 if (Vector3.Distance(transform.position, currentTargetPosition) < 0.1f)
-                {
                     currentTargetPosition = Vector3.zero;
-                }
             }
         }
 
-        private void ShootFireball()
+        /// <summary>
+        /// Nearest LIVING, NON-PARKED player in range. Parked swap-mode
+        /// characters are never targeted — an unattended character must not
+        /// be sniped off-screen.
+        /// </summary>
+        Transform AcquireTarget()
         {
-            GameObject player1 = GameObject.FindWithTag("Player");
-            GameObject player2 = GameObject.FindWithTag("PlayerTwo");
+            Transform best = null;
+            float bestDist = shootRange;
 
-            if (fireballPrefab != null)
+            PlayerCharacterOne p1 = PlayerCharacterOne.Get(1);
+            if (p1 != null && !p1.IsDead() && p1.gameObject.activeSelf && !SwapModeController.IsParked(1))
             {
-                // Shoot at Player One if exists
-                if (player1 != null)
-                {
-                    LaunchFireballAtTarget(player1.transform.position);
-                }
+                float d = Vector3.Distance(transform.position, p1.transform.position);
+                if (d < bestDist) { bestDist = d; best = p1.transform; }
+            }
 
-                // Shoot at Player Two if exists
-                if (player2 != null)
+            PlayerCharacterTwo p2 = PlayerCharacterTwo.Get(2);
+            if (p2 != null && !p2.IsDead() && p2.gameObject.activeSelf && !SwapModeController.IsParked(2))
+            {
+                float d = Vector3.Distance(transform.position, p2.transform.position);
+                if (d < bestDist) { bestDist = d; best = p2.transform; }
+            }
+
+            return best;
+        }
+
+        IEnumerator ShootLoop()
+        {
+            yield return new WaitForSeconds(initialShootDelay);
+
+            while (true)
+            {
+                Transform target = AcquireTarget();
+                if (target != null && liveFireballs < maxLiveFireballs && fireballPrefab != null)
                 {
-                    LaunchFireballAtTarget(player2.transform.position);
+                    onTelegraph?.Invoke();
+                    yield return new WaitForSeconds(0.3f);
+
+                    // Re-acquire after the wind-up so the shot tracks honestly.
+                    target = AcquireTarget();
+                    if (target != null)
+                        LaunchFireballAt(target.position);
                 }
+                yield return new WaitForSeconds(shootInterval);
             }
         }
 
-        private void LaunchFireballAtTarget(Vector3 targetPosition)
+        void LaunchFireballAt(Vector3 targetPosition)
         {
             Vector2 direction = (targetPosition - transform.position).normalized;
-            GameObject fireball = Instantiate(fireballPrefab, transform.position, Quaternion.identity);
+            GameObject fireballObj = Instantiate(fireballPrefab, transform.position, Quaternion.identity);
+            fireballObj.tag = "Fireball";
 
-            Rigidbody2D fireballRb = fireball.GetComponent<Rigidbody2D>();
-            if (fireballRb)
-            {
+            Fireball fireball = fireballObj.GetComponent<Fireball>();
+            if (fireball != null)
+                fireball.owner = Fireball.Owner.Enemy;
+
+            Rigidbody2D fireballRb = fireballObj.GetComponent<Rigidbody2D>();
+            if (fireballRb != null)
                 fireballRb.velocity = direction * fireballSpeed;
-            }
-            fireball.tag = "Fireball";
+
+            liveFireballs++;
+            StartCoroutine(ReleaseSlotWhenGone(fireballObj));
         }
 
-        private void OnCollisionEnter2D(Collision2D collision)
+        IEnumerator ReleaseSlotWhenGone(GameObject fireball)
         {
-            if (collision.gameObject.CompareTag("Player") || collision.gameObject.CompareTag("PlayerTwo"))
-            {
-                gameState?.TriggerGameOver();
-            }
-
-            if (collision.gameObject.CompareTag("Fireball"))
-            {
-                Destroy(gameObject);
-            }
+            while (fireball != null)
+                yield return new WaitForSeconds(0.5f);
+            liveFireballs = Mathf.Max(0, liveFireballs - 1);
         }
 
-        private IEnumerator FloatRandomly()
+        void OnCollisionEnter2D(Collision2D collision)
+        {
+            DealContactDamage(collision);
+        }
+
+        void OnCollisionStay2D(Collision2D collision)
+        {
+            // Player i-frames (1s) throttle this to one hit per second.
+            DealContactDamage(collision);
+        }
+
+        void DealContactDamage(Collision2D collision)
+        {
+            if (collision.gameObject.CompareTag("Player"))
+                collision.gameObject.GetComponent<PlayerCharacterOne>()?.TakeDamage(contactDamage);
+            else if (collision.gameObject.CompareTag("PlayerTwo"))
+                collision.gameObject.GetComponent<PlayerCharacterTwo>()?.TakeDamage(contactDamage);
+        }
+
+        public void Die()
+        {
+            AudioManager.PlaySfx("enemy_poof");
+            onDeath?.Invoke();
+            Destroy(gameObject);
+        }
+
+        IEnumerator FloatRandomly()
         {
             while (true)
             {
@@ -111,21 +166,8 @@ namespace IndieMarc.Platformer
                     Random.Range(-moveRange, moveRange),
                     0f
                 );
-
                 currentTargetPosition = startPosition + randomOffset;
                 yield return new WaitForSeconds(0.5f);
-            }
-        }
-
-        private IEnumerator ShootFireballs()
-        {
-            // Initial delay before starting to shoot
-            yield return new WaitForSeconds(initialShootDelay);
-
-            while (true)
-            {
-                ShootFireball();
-                yield return new WaitForSeconds(shootInterval);
             }
         }
     }

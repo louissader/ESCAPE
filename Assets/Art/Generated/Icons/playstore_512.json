@@ -1,0 +1,10 @@
+{
+  "frameWidth": 512,
+  "frameHeight": 512,
+  "frames": [
+    {
+      "name": "playstore_icon",
+      "index": 0
+    }
+  ]
+}

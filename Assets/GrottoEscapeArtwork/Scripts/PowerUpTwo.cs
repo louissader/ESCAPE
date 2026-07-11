@@ -11,6 +11,7 @@ public class PowerUpTwo : MonoBehaviour
         if (player != null)
         {
             player.CollectPowerUp();
+            AudioManager.PlaySfx("powerup");
             Destroy(gameObject);
 
             // Debugging

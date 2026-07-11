@@ -1,0 +1,10 @@
+{
+  "frameWidth": 16,
+  "frameHeight": 16,
+  "frames": [
+    {
+      "name": "impact_ring",
+      "index": 0
+    }
+  ]
+}

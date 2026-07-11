@@ -64,6 +64,20 @@ namespace IndieMarc.Platformer
             if (Input.GetKeyDown(action_key))
                 action_press = true;
 
+            // Merge the virtual (touch/test) channel with keyboard input.
+            VirtualInputChannel virtual_input = VirtualInputRouter.Get(player_id);
+            move.x = Mathf.Clamp(move.x + virtual_input.move, -1f, 1f);
+            if (virtual_input.downHold)
+                move.y = Mathf.Min(move.y - 1f, -1f);
+            if (virtual_input.jumpHold)
+                jump_hold = true;
+            if (virtual_input.ConsumeJumpDown())
+                jump_press = true;
+            if (virtual_input.actionHold)
+                action_hold = true;
+            if (virtual_input.ConsumeActionDown())
+                action_press = true;
+
             float move_length = Mathf.Min(move.magnitude, 1f);
             move = move.normalized * move_length;
 
