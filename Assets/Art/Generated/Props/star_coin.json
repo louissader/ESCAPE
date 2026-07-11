@@ -1,0 +1,22 @@
+{
+  "frameWidth": 16,
+  "frameHeight": 16,
+  "frames": [
+    {
+      "name": "spin_0",
+      "index": 0
+    },
+    {
+      "name": "spin_1",
+      "index": 1
+    },
+    {
+      "name": "spin_2",
+      "index": 2
+    },
+    {
+      "name": "spin_3",
+      "index": 3
+    }
+  ]
+}

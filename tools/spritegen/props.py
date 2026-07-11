@@ -651,9 +651,83 @@ def generate():
     gen_exit_portal()
     gen_checkpoint_torch()
     gen_ui_buttons()
+    gen_star_coin()
     gen_powerups()
     gen_props_review()
 
 
 if __name__ == "__main__":
     generate()
+
+
+# ------------------------------------------------------------------ star coin
+
+def _star_points(cx, cy, r_outer, r_inner):
+    """Integer pixel set for a 5-point star (for 16x16 pixel art)."""
+    pts = []
+    for i in range(10):
+        ang = -math.pi / 2 + i * math.pi / 5
+        r = r_outer if i % 2 == 0 else r_inner
+        pts.append((cx + r * math.cos(ang), cy + r * math.sin(ang)))
+    # rasterize by point-in-polygon over the tile
+    inside = set()
+    for py in range(16):
+        for px in range(16):
+            x, y = px + 0.5, py + 0.5
+            hit = False
+            j = len(pts) - 1
+            for i in range(len(pts)):
+                xi, yi = pts[i]
+                xj, yj = pts[j]
+                if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi + 1e-9) + xi:
+                    hit = not hit
+                j = i
+            if hit:
+                inside.add((px, py))
+    return inside
+
+def gen_star_coin():
+    """16x16 star coin: 4-frame spin (NSMB style) + a single 'empty slot'
+    outline frame for the level-select (uncollected state)."""
+    gold = hex_rgba("#f4c05a")
+    gold_dark = hex_rgba("#c98a2e")
+    gold_hot = hex_rgba("#fff3c4")
+    coin_face = hex_rgba("#8a5a1c")
+
+    # spin widths simulate rotation: full, mid, thin, mid
+    widths = [14, 10, 4, 10]
+    frames = []
+    for f, w in enumerate(widths):
+        img = blank(16, 16)
+        cx = 8
+        half = w // 2
+        # coin disc (ellipse squashed horizontally by spin)
+        for y in range(1, 15):
+            dy = (y - 8) / 7.0
+            span = int(half * math.sqrt(max(0.0, 1 - dy * dy)))
+            for x in range(cx - span, cx + span):
+                if 0 <= x < 16:
+                    edge = (x == cx - span or x == cx + span - 1 or y in (1, 14))
+                    img[y, x] = gold_dark if edge else gold
+        # star emboss only on the wide frames
+        if w >= 10:
+            for (px, py) in _star_points(8, 8, 5 if w == 14 else 4, 2):
+                img[py, px] = coin_face
+        # top-left shine
+        if w == 14:
+            img[3, 5] = gold_hot
+            img[2, 6] = gold_hot
+        frames.append(outline(img, K))
+    save_strip(frames, [f"spin_{i}" for i in range(4)], out_path("Props", "star_coin.png"))
+
+    # Empty slot: dashed chain-link circle outline (Mario world-map style).
+    slot = blank(16, 16)
+    grey = hex_rgba("#9aa7ad")
+    grey_dark = hex_rgba("#5c686e")
+    for i in range(24):
+        ang = i * (2 * math.pi / 24)
+        px = int(round(8 + 6.2 * math.cos(ang)))
+        py = int(round(8 + 6.2 * math.sin(ang)))
+        if 0 <= px < 16 and 0 <= py < 16 and i % 3 != 2:   # dashed
+            slot[py, px] = grey if i % 2 == 0 else grey_dark
+    save_single(slot, "empty_0", out_path("Props", "star_coin_empty.png"))

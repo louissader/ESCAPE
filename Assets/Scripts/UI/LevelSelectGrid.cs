@@ -8,11 +8,14 @@ using TMPro;
 /// </summary>
 public class LevelSelectGrid : MonoBehaviour
 {
-    public Sprite lockSprite;   // Assets/Lock.png, wired by editor automation
+    public Sprite lockSprite;       // Assets/Lock.png, wired by editor automation
+    public Sprite coinFilled;       // star_coin spin_0
+    public Sprite coinEmpty;        // dashed outline slot (uncollected)
 
     void Start()
     {
         int highest = SaveSystem.HighestUnlockedLevel;
+        int justCompleted = SaveSystem.ConsumeLastCompleted();
 
         var grid = gameObject.GetComponent<GridLayoutGroup>();
         if (grid == null)
@@ -26,18 +29,40 @@ public class LevelSelectGrid : MonoBehaviour
         }
 
         for (int level = 1; level <= SceneRouter.LevelCount; level++)
-            BuildTile(level, level <= highest);
+            BuildTile(level, level <= highest, level == justCompleted);
     }
 
-    void BuildTile(int level, bool unlocked)
+    void BuildTile(int level, bool unlocked, bool justCompleted)
     {
+        bool completed = SaveSystem.IsLevelCompleted(level);
         GameObject tile = new GameObject($"LevelTile_{level}", typeof(RectTransform));
         tile.transform.SetParent(transform, false);
 
         Image bg = tile.AddComponent<Image>();
-        bg.color = unlocked
-            ? new Color(0.13f, 0.35f, 0.46f, 0.95f)
-            : new Color(0.08f, 0.14f, 0.18f, 0.9f);
+        bg.color = completed
+            ? new Color(0.10f, 0.42f, 0.24f, 0.95f)          // green: done!
+            : unlocked
+                ? new Color(0.13f, 0.35f, 0.46f, 0.95f)
+                : new Color(0.08f, 0.14f, 0.18f, 0.9f);
+
+        if (completed)
+        {
+            // Soft green glow behind the tile + pulse (one-shot pop if the
+            // player JUST beat this level — the dopamine moment).
+            GameObject glowObj = new GameObject("Glow", typeof(RectTransform));
+            glowObj.transform.SetParent(tile.transform, false);
+            glowObj.transform.SetAsFirstSibling();
+            var glowRect = (RectTransform)glowObj.transform;
+            glowRect.anchorMin = Vector2.zero;
+            glowRect.anchorMax = Vector2.one;
+            glowRect.offsetMin = new Vector2(-10, -10);
+            glowRect.offsetMax = new Vector2(10, 10);
+            Image glowImage = glowObj.AddComponent<Image>();
+            glowImage.raycastTarget = false;
+            var celebration = tile.AddComponent<LevelTileCelebration>();
+            celebration.glow = glowImage;
+            celebration.celebrate = justCompleted;
+        }
 
         if (unlocked)
         {
@@ -76,20 +101,28 @@ public class LevelSelectGrid : MonoBehaviour
 
         if (unlocked)
         {
+            // Mario-style star-coin slots: dashed empty outline until each
+            // coin is collected, gold coin once it is.
             int stars = SaveSystem.StarsForLevel(level);
-            GameObject pipsObj = new GameObject("Pips", typeof(RectTransform));
-            pipsObj.transform.SetParent(tile.transform, false);
-            var pips = pipsObj.AddComponent<TextMeshProUGUI>();
-            pips.text = new string('◆', stars) + new string('◇', Mathf.Max(0, 3 - stars));
-            pips.fontSize = 36;
-            pips.alignment = TextAlignmentOptions.Center;
-            pips.color = new Color(0.47f, 0.96f, 0.75f);
-            var rect = (RectTransform)pipsObj.transform;
-            rect.anchorMin = new Vector2(0, 0);
-            rect.anchorMax = new Vector2(1, 0);
-            rect.pivot = new Vector2(0.5f, 0);
-            rect.anchoredPosition = new Vector2(0, 16);
-            rect.sizeDelta = new Vector2(0, 44);
+            for (int slot = 0; slot < 3; slot++)
+            {
+                GameObject coinObj = new GameObject($"Coin{slot}", typeof(RectTransform));
+                coinObj.transform.SetParent(tile.transform, false);
+                var rect = (RectTransform)coinObj.transform;
+                rect.anchorMin = new Vector2(0.5f, 0);
+                rect.anchorMax = new Vector2(0.5f, 0);
+                rect.pivot = new Vector2(0.5f, 0);
+                rect.sizeDelta = new Vector2(44, 44);
+                rect.anchoredPosition = new Vector2((slot - 1) * 52, 14);
+                Image coin = coinObj.AddComponent<Image>();
+                coin.sprite = slot < stars ? coinFilled : coinEmpty;
+                coin.preserveAspect = true;
+                coin.raycastTarget = false;
+                if (coin.sprite == null)
+                    coin.color = slot < stars
+                        ? new Color(0.96f, 0.75f, 0.35f)
+                        : new Color(1f, 1f, 1f, 0.25f);
+            }
         }
     }
 

@@ -15,6 +15,8 @@ public static class SaveSystem
     const string KeyControlMode = "escape.controlMode";
     const string KeyStorySeen = "escape.storySeen";
     const string KeyTutorialSeen = "escape.tutorialSeen";
+    const string KeyCompletedPrefix = "escape.completed.";
+    const string KeyLastCompleted = "escape.lastCompleted";
 
     const string LegacyUnlockedCount = "unlockedCount";
     const int CurrentVersion = 2;
@@ -61,7 +63,28 @@ public static class SaveSystem
         int unlocked = Mathf.Clamp(levelNumber + 1, 1, SceneRouter.LevelCount);
         if (unlocked > HighestUnlockedLevel)
             HighestUnlockedLevel = unlocked;
+        PlayerPrefs.SetInt(KeyCompletedPrefix + levelNumber, 1);
+        // One-shot celebration marker for the level-select screen.
+        PlayerPrefs.SetInt(KeyLastCompleted, levelNumber);
         PlayerPrefs.Save();
+    }
+
+    public static bool IsLevelCompleted(int levelNumber)
+    {
+        return PlayerPrefs.GetInt(KeyCompletedPrefix + levelNumber, 0) == 1;
+    }
+
+    /// <summary>Level that just got beaten (0 = none). Cleared after the
+    /// level-select celebration animation plays once.</summary>
+    public static int ConsumeLastCompleted()
+    {
+        int level = PlayerPrefs.GetInt(KeyLastCompleted, 0);
+        if (level != 0)
+        {
+            PlayerPrefs.DeleteKey(KeyLastCompleted);
+            PlayerPrefs.Save();
+        }
+        return level;
     }
 
     public static int StarsForLevel(int levelNumber)
@@ -114,8 +137,12 @@ public static class SaveSystem
         PlayerPrefs.DeleteKey(KeyHighestUnlocked);
         PlayerPrefs.DeleteKey(KeyStorySeen);
         PlayerPrefs.DeleteKey(KeyTutorialSeen);
+        PlayerPrefs.DeleteKey(KeyLastCompleted);
         for (int i = 1; i <= SceneRouter.LevelCount; i++)
+        {
             PlayerPrefs.DeleteKey(KeyStarsPrefix + i);
+            PlayerPrefs.DeleteKey(KeyCompletedPrefix + i);
+        }
         PlayerPrefs.Save();
     }
 }

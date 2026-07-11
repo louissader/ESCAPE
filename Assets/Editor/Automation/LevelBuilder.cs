@@ -171,9 +171,9 @@ namespace Escape.EditorAutomation
             Sprite heart = FindGrottoSprite("heart");
             foreach (Vector2Int p in def.hearts)
                 SpriteEntity<HeartPickup>(holder, "Heart", LegacyWorld(p), heart, 0.8f);
-            Sprite crystalSprite = FindGrottoSprite("crystal-01");
+            Sprite crystalSprite = FirstSprite("Assets/Art/Generated/Props/star_coin.png", "star_coin_spin_0");
             foreach (Vector2Int p in def.crystals)
-                SpriteEntity<Crystal>(holder, "Crystal", LegacyWorld(p), crystalSprite, 0.9f);
+                AddCoinSpin(SpriteEntity<Crystal>(holder, "Crystal", LegacyWorld(p), crystalSprite, 0.9f));
             Sprite torchUnlit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_unlit_0");
             Sprite torchLit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0");
             foreach (Vector2Int p in def.checkpoints)
@@ -370,9 +370,9 @@ namespace Escape.EditorAutomation
             foreach (Vector2Int p in def.hearts)
                 SpriteEntity<HeartPickup>(holder, "Heart", World(p), heart, 0.8f);
 
-            Sprite crystal = FindGrottoSprite("crystal-01");
+            Sprite crystal = FirstSprite("Assets/Art/Generated/Props/star_coin.png", "star_coin_spin_0");
             foreach (Vector2Int p in def.crystals)
-                SpriteEntity<Crystal>(holder, "Crystal", World(p), crystal, 0.9f);
+                AddCoinSpin(SpriteEntity<Crystal>(holder, "Crystal", World(p), crystal, 0.9f));
 
             Sprite torchUnlit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_unlit_0");
             Sprite torchLit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0");
@@ -508,6 +508,20 @@ namespace Escape.EditorAutomation
         /// Rescales an object so its sprite renders at targetHeight world
         /// units, and resizes its BoxCollider2D to roughly match the body.
         /// </summary>
+        static void AddCoinSpin(GameObject coin)
+        {
+            if (coin == null)
+                return;
+            var frames = AssetDatabase.LoadAllAssetsAtPath(
+                    "Assets/Art/Generated/Props/star_coin.png")
+                .OfType<Sprite>().OrderBy(sp => sp.name).ToArray();
+            if (frames.Length < 2)
+                return;
+            var cycler = coin.AddComponent<SpriteCycler>();
+            cycler.frames = frames;
+            cycler.fps = 8f;
+        }
+
         static void NormalizeSpriteHeight(GameObject go, float targetHeight, bool resizeCollider = true)
         {
             if (go == null)

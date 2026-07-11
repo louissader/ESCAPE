@@ -61,6 +61,20 @@ namespace IndieMarc.Platformer
                 yield return new WaitForSeconds(frameTime);
             }
 
+            // A hero standing inside the bridge volume when the collider
+            // turns solid would be wedged inside it — lift them on top first.
+            Bounds bounds = spriteRenderer.bounds;
+            foreach (Collider2D hit in Physics2D.OverlapBoxAll(bounds.center, bounds.size, 0f))
+            {
+                if (hit.CompareTag("Player") || hit.CompareTag("PlayerTwo"))
+                {
+                    Vector3 pos = hit.transform.position;
+                    float lift = bounds.max.y + hit.bounds.extents.y + 0.02f;
+                    if (pos.y < lift)
+                        hit.transform.position = new Vector3(pos.x, lift, pos.z);
+                }
+            }
+
             boxCollider.enabled = true;
             anim = null;
         }

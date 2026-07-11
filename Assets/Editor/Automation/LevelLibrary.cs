@@ -65,29 +65,26 @@ namespace Escape.EditorAutomation
             g.Platform(18, 7, 4);
             g.Lava(23, 1, 10);
             g.Platform(32, 7, 5);
-            g.Wall(33, 1, 6);
             g.Platform(27, 11, 3);
             g.Block(26, 26, 3, 3);
-            g.Wall(38, 1, 3);
             g.Platform(37, 10, 3);
             g.Platform(42, 12, 3);
             g.Platform(47, 14, 3);
             g.Platform(50, 17, 4);
             g.Platform(50, 21, 5);
             g.Platform(49, 24, 6);
-            g.Wall(46, 1, 4);
             g.Platform(40, 15, 2);
             g.Platform(34, 18, 3);
             g.Platform(39, 22, 3);
             g.Block(44, 26, 2, 3);
+            g.Lava(33, 1, 22);
             g.Lava(55, 1, 12);
+            g.Lava(67, 1, 22);
             g.Platform(63, 24, 5);
             g.Platform(70, 23, 4);
             g.Platform(75, 21, 4);
             g.Platform(80, 19, 8);
             g.Platform(68, 27, 3);
-            g.Wall(68, 1, 5);
-            g.Wall(78, 1, 4);
             g.Block(58, 27, 2, 2);
 
             var def = ScriptableObject.CreateInstance<LevelDefinition>();
@@ -119,7 +116,7 @@ namespace Escape.EditorAutomation
             def.powerUpTwo = new[] { V(43, 13) };
             def.hearts = new[] { V(21, 8), V(37, 11), V(51, 25), V(71, 24) };
             def.crystals = new[] { V(28, 12), V(35, 19), V(40, 23) };
-            def.checkpoints = new[] { V(32, 8), V(50, 25) };
+            def.checkpoints = new[] { V(32, 8), V(48, 15), V(50, 25) };
             def.movingPlatforms = new[]
             {
                 new LevelDefinition.MovingPlatformPlacement { from = V(37, 16), to = V(37, 21), speed = 1.0f },

@@ -45,14 +45,43 @@ namespace Escape.EditorAutomation
                 rect.anchoredPosition = new Vector2(0, -30);
             }
 
+            // Tidy the legacy scene furniture so it frames the grid instead
+            // of clashing with it: title above, nav buttons in bottom corners.
+            Reposition("Levels Text", new Vector2(0.5f, 1f), new Vector2(0, -110));
+            Reposition("Main Menu Button", new Vector2(0f, 0f), new Vector2(240, 80));
+            Reposition("second lore button", new Vector2(1f, 0f), new Vector2(-240, 80));
+
             var grid = gridObj.GetComponent<LevelSelectGrid>();
             if (grid == null)
                 grid = gridObj.AddComponent<LevelSelectGrid>();
             grid.lockSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Lock.png");
+            grid.coinFilled = LoadSprite("Assets/Art/Generated/Props/star_coin.png", "star_coin_spin_0");
+            grid.coinEmpty = LoadSprite("Assets/Art/Generated/Props/star_coin_empty.png", "star_coin_empty_empty_0");
+            if (grid.coinEmpty == null)   // single-frame sheets may import as Single mode
+                grid.coinEmpty = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Generated/Props/star_coin_empty.png");
             EditorUtility.SetDirty(grid);
 
             EditorSceneManager.SaveScene(scene);
             Debug.Log("[LevelMenuBuilder] Level Scene rebuilt with LevelSelectGrid");
+        }
+
+        static void Reposition(string objectName, Vector2 anchor, Vector2 anchoredPos)
+        {
+            GameObject go = GameObject.Find(objectName);
+            if (go == null || !(go.transform is RectTransform rect))
+                return;
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPos;
+        }
+
+        static Sprite LoadSprite(string path, string name)
+        {
+            foreach (Object asset in AssetDatabase.LoadAllAssetsAtPath(path))
+                if (asset is Sprite sprite && sprite.name == name)
+                    return sprite;
+            return null;
         }
     }
 }

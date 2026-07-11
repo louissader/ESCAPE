@@ -162,7 +162,7 @@ namespace Escape.EditorAutomation
                 winDim.color = new Color(0.02f, 0.12f, 0.08f, 0.92f);
                 TextMeshProUGUI winTitle = MakeLabel(winPanel, "Title", "LEVEL COMPLETE", 76,
                     new Vector2(0.5f, 0.5f), new Vector2(0, 260));
-                TextMeshProUGUI winCrystals = MakeLabel(winPanel, "Crystals", "CRYSTALS 0 / 3", 44,
+                TextMeshProUGUI winCrystals = MakeLabel(winPanel, "Crystals", "STAR COINS 0 / 3", 44,
                     new Vector2(0.5f, 0.5f), new Vector2(0, 150));
                 Button nextBtn = MakeTextButton(winPanel, "Btn_Next", "NEXT LEVEL",
                     new Vector2(0.5f, 0.5f), new Vector2(0, 30), new Vector2(560, 96));

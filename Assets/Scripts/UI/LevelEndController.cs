@@ -47,7 +47,7 @@ public class LevelEndController : MonoBehaviour
         if (winTitle != null)
             winTitle.text = $"LEVEL {level} COMPLETE";
         if (winCrystals != null)
-            winCrystals.text = $"CRYSTALS  {crystals} / {totalCrystals}";
+            winCrystals.text = $"STAR COINS  {crystals} / {totalCrystals}";
         if (nextButton != null)
             nextButton.SetActive(!SceneRouter.IsLastLevel(level));
         if (winPanel != null)
