@@ -403,6 +403,12 @@ namespace Escape.EditorAutomation
                 mover.from = World(mp.from);
                 mover.to = World(mp.to);
                 mover.speed = mp.speed > 0.01f ? mp.speed : 2f;
+                if (mp.isLavaRiserRide)
+                {
+                    // Ride waits for the chase trigger, then goes up ONCE.
+                    mover.active = false;
+                    mover.oneWay = true;
+                }
 
                 int platformLayer = LayerMask.NameToLayer("Platform");
                 if (platformLayer >= 0)
@@ -428,7 +434,9 @@ namespace Escape.EditorAutomation
                     trigger.transform.position = World(mp.from) + Vector3.up * 1.5f;
                     var triggerBox = trigger.AddComponent<BoxCollider2D>();
                     triggerBox.size = new Vector2(6f, 3f);
-                    trigger.AddComponent<LavaRiserTrigger>().riser = riser;
+                    var riserTrigger = trigger.AddComponent<LavaRiserTrigger>();
+                    riserTrigger.riser = riser;
+                    riserTrigger.ride = mover;
                 }
             }
         }

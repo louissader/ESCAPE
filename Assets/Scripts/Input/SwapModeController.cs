@@ -73,10 +73,17 @@ public class SwapModeController : MonoBehaviour
 
     public ControlMode Mode { get { return mode; } }
 
-    /// <summary>True when both characters can still be piloted (swap allowed).</summary>
+    /// <summary>True when both characters can still be piloted (swap allowed).
+    /// Dead characters count as unpilotable — swapping to a corpse during its
+    /// respawn window would strand the player controlling nothing.</summary>
     public bool CanSwap
     {
-        get { return mode == ControlMode.Swap && !player1Gone && !player2Gone; }
+        get
+        {
+            return mode == ControlMode.Swap && !player1Gone && !player2Gone &&
+                   player1 != null && !player1.IsDead() &&
+                   player2 != null && !player2.IsDead();
+        }
     }
 
     public void RequestSwap()

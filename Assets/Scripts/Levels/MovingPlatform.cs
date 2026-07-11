@@ -12,6 +12,7 @@ public class MovingPlatform : MonoBehaviour
     public Vector3 to;
     public float speed = 2f;
     public bool active = true;
+    public bool oneWay = false;   // ride elevators: go to 'to' once, then stop
 
     Rigidbody2D body;
     Vector3 target;
@@ -32,7 +33,14 @@ public class MovingPlatform : MonoBehaviour
         Vector3 next = Vector3.MoveTowards(transform.position, target, speed * Time.fixedDeltaTime);
         body.MovePosition(next);
         if (Vector3.Distance(next, target) < 0.05f)
+        {
+            if (oneWay && target == to)
+            {
+                active = false;   // reached the summit — the ride is done
+                return;
+            }
             target = target == to ? from : to;
+        }
     }
 
     void OnCollisionEnter2D(Collision2D collision)

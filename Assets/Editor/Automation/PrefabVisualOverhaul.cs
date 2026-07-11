@@ -111,6 +111,11 @@ namespace Escape.EditorAutomation
             GameObject root = PrefabUtility.LoadPrefabContents(path);
             try
             {
+                // The pack prefab was saved with an INACTIVE root — Start()
+                // never ran on instances, so levers toggled components on an
+                // invisible object and generated bridges never extended.
+                root.SetActive(true);
+
                 var renderer = root.GetComponent<SpriteRenderer>();
                 Vector2 worldSize = renderer.bounds.size;
                 renderer.sprite = frames[frames.Length - 1];

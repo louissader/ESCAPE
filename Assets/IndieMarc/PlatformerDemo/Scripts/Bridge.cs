@@ -68,10 +68,15 @@ namespace IndieMarc.Platformer
             {
                 if (hit.CompareTag("Player") || hit.CompareTag("PlayerTwo"))
                 {
-                    Vector3 pos = hit.transform.position;
                     float lift = bounds.max.y + hit.bounds.extents.y + 0.02f;
-                    if (pos.y < lift)
-                        hit.transform.position = new Vector3(pos.x, lift, pos.z);
+                    // Move via the rigidbody — writing transform.position on
+                    // a physics body desyncs it from the simulation.
+                    Rigidbody2D body = hit.attachedRigidbody;
+                    if (body != null && body.position.y < lift)
+                        body.position = new Vector2(body.position.x, lift);
+                    else if (body == null && hit.transform.position.y < lift)
+                        hit.transform.position = new Vector3(
+                            hit.transform.position.x, lift, hit.transform.position.z);
                 }
             }
 

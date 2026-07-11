@@ -33,6 +33,14 @@ public class GameState : MonoBehaviour
     private Color overlayColor;
     private Color textColor;
 
+    void Awake()
+    {
+        // Must clear in Awake: players register their spawn points in Start,
+        // and Start-order is not guaranteed — a reset in GameState.Start
+        // could wipe their registrations (respawn-at-death-position bug).
+        CheckpointManager.ResetForLevel();
+    }
+
     void Start()
     {
         player1 = GameObject.Find("Player1")?.GetComponent<PlayerCharacterOne>();
@@ -45,7 +53,6 @@ public class GameState : MonoBehaviour
 
         dragonCount = 0;
         gameOver = false;
-        CheckpointManager.ResetForLevel();
 
         if (gameOverOverlay != null)
         {
@@ -113,8 +120,11 @@ public class GameState : MonoBehaviour
 
     public void HandleLavaCollision(GameObject player)
     {
-        if (player.CompareTag("Player") || player.CompareTag("PlayerTwo"))
-            TriggerGameOver();
+        // Legacy hook (LavaSquare triggers): kill the toucher — the
+        // checkpoint respawn system owns what happens next. The old
+        // TriggerGameOver here contradicted the one-death-respawns rule.
+        player.GetComponent<PlayerCharacterOne>()?.Kill();
+        player.GetComponent<PlayerCharacterTwo>()?.Kill();
     }
 
     private void OnLevelComplete()

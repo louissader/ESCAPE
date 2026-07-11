@@ -29,6 +29,16 @@ public class LavaRiser : MonoBehaviour
     {
         Active = true;
         AudioManager.PlaySfx("bridge"); // rumble
+
+        // Swap mode: the parked character would be left below and swallowed
+        // through no fault of the player — bring it to its partner so both
+        // board the ride together (the level's design intent).
+        var p1 = PlayerCharacterOne.Get(1);
+        var p2 = PlayerCharacterTwo.Get(2);
+        if (SwapModeController.IsParked(1) && p1 != null && p2 != null && p2.gameObject.activeSelf)
+            p1.Teleport(p2.transform.position);
+        else if (SwapModeController.IsParked(2) && p2 != null && p1 != null && p1.gameObject.activeSelf)
+            p2.Teleport(p1.transform.position);
     }
 
     void Update()
@@ -39,23 +49,32 @@ public class LavaRiser : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
+        // Inert until the chase begins (before activation it sits harmlessly
+        // below the shaft floor) and never punishes the parked character.
+        if (!Active)
+            return;
         if (!other.CompareTag("Player") && !other.CompareTag("PlayerTwo"))
             return;
 
-        other.GetComponent<PlayerCharacterOne>()?.Kill();
-        other.GetComponent<PlayerCharacterTwo>()?.Kill();
+        var p1 = other.GetComponent<PlayerCharacterOne>();
+        var p2 = other.GetComponent<PlayerCharacterTwo>();
+        if (p1 != null && SwapModeController.IsParked(1)) return;
+        if (p2 != null && SwapModeController.IsParked(2)) return;
 
-        // During the chase a single death fails the level immediately.
-        if (Active)
-            Object.FindObjectOfType<GameState>()?.TriggerGameOver();
+        p1?.Kill();
+        p2?.Kill();
+        // During the chase a piloted death fails the level immediately —
+        // a checkpoint respawn below the risen lava would be an insta-kill loop.
+        Object.FindObjectOfType<GameState>()?.TriggerGameOver();
     }
 }
 
-/// <summary>Trigger zone that starts the riser when any player crosses it.</summary>
+/// <summary>Trigger zone that starts the riser + ride when a player crosses it.</summary>
 [RequireComponent(typeof(BoxCollider2D))]
 public class LavaRiserTrigger : MonoBehaviour
 {
     public LavaRiser riser;
+    public MovingPlatform ride;   // the escape elevator: parked until the chase starts
 
     void Awake()
     {
@@ -68,6 +87,8 @@ public class LavaRiserTrigger : MonoBehaviour
         {
             if (riser != null)
                 riser.Activate();
+            if (ride != null)
+                ride.active = true;
             Destroy(gameObject);
         }
     }

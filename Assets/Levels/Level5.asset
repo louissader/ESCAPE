@@ -161,7 +161,7 @@ MonoBehaviour:
   - {x: 19, y: 29}
   movingPlatforms:
   - from: {x: 26, y: 19}
-    to: {x: 26, y: 25}
+    to: {x: 22, y: 24}
     speed: 2
     isLavaRiserRide: 0
   boundsMin: {x: 0, y: 0}

@@ -32,12 +32,25 @@ public class PauseMenu : MonoBehaviour
 
     void OnApplicationPause(bool paused)
     {
-        if (paused && !IsPaused)
+        if (paused && !IsPaused && !LevelEndController.IsShowing)
             SetPaused(true);
     }
 
-    public void Toggle() { SetPaused(!IsPaused); }
-    public void OnPauseButton() { SetPaused(true); }
+    public void Toggle()
+    {
+        // A win/fail panel owns the timescale — unpausing here would resume
+        // gameplay behind it (enemies moving, lava rising).
+        if (LevelEndController.IsShowing)
+            return;
+        SetPaused(!IsPaused);
+    }
+
+    public void OnPauseButton()
+    {
+        if (LevelEndController.IsShowing)
+            return;
+        SetPaused(true);
+    }
     public void OnResumeButton() { SetPaused(false); }
 
     public void OnRestartButton()

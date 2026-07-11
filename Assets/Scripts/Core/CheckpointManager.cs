@@ -33,15 +33,19 @@ public static class CheckpointManager
             activated.Add(position);
     }
 
-    public static Vector3 GetRespawnPosition(int deadPlayerId, Vector3 survivorPosition, bool hasSurvivor)
+    public static Vector3 GetRespawnPosition(int deadPlayerId, Vector3 referencePosition, bool hasSurvivor)
     {
-        if (hasSurvivor && activated.Count > 0)
+        // Lit checkpoints always count — when there's no surviving partner
+        // (e.g. the other hero already entered the exit), respawn at the
+        // checkpoint nearest the dead character's own position instead of
+        // silently discarding checkpoint progress.
+        if (activated.Count > 0)
         {
             Vector3 best = activated[0];
             float bestDist = float.MaxValue;
             foreach (Vector3 cp in activated)
             {
-                float d = (cp - survivorPosition).sqrMagnitude;
+                float d = (cp - referencePosition).sqrMagnitude;
                 if (d < bestDist)
                 {
                     bestDist = d;
@@ -53,6 +57,6 @@ public static class CheckpointManager
 
         if (levelStarts.TryGetValue(deadPlayerId, out Vector3 start))
             return start;
-        return survivorPosition;
+        return referencePosition;
     }
 }

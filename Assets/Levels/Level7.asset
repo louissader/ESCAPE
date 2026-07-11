@@ -124,10 +124,10 @@ MonoBehaviour:
   leverGroups:
   - lever: {x: 36, y: 5}
     bridgeTiles:
-    - {x: 45, y: 1}
-    - {x: 46, y: 1}
-    - {x: 47, y: 1}
-    - {x: 48, y: 1}
+    - {x: 45, y: 2}
+    - {x: 46, y: 2}
+    - {x: 47, y: 2}
+    - {x: 48, y: 2}
   powerUpOne:
   - {x: 28, y: 19}
   powerUpTwo:

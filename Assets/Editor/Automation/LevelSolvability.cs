@@ -71,16 +71,28 @@ namespace Escape.EditorAutomation
                     if (!Solid(x, y) && def.TileAt(x, y) != 'L' && (y == 0 || Solid(x, y - 1)))
                         standable.Add(new Vector2Int(x, y));
 
-            // Bridges and moving-platform endpoints are standable.
+            // Bridges and moving-platform endpoints are standable — but only
+            // when the standing tile itself is CLEAR (a bridge top inside
+            // solid rock, or a platform docking into a ledge, is not a place
+            // a hero can occupy; treating it as one hid real design bugs).
             foreach (var group in def.leverGroups)
                 foreach (Vector2Int b in group.bridgeTiles)
-                    standable.Add(new Vector2Int(b.x, b.y + 1));
+                    if (Clear(def, b.x, b.y + 1))
+                        standable.Add(new Vector2Int(b.x, b.y + 1));
             foreach (var mp in def.movingPlatforms)
             {
-                standable.Add(new Vector2Int(mp.from.x, mp.from.y + 1));
-                standable.Add(new Vector2Int(mp.to.x, mp.to.y + 1));
+                if (Clear(def, mp.from.x, mp.from.y + 1))
+                    standable.Add(new Vector2Int(mp.from.x, mp.from.y + 1));
+                if (Clear(def, mp.to.x, mp.to.y + 1))
+                    standable.Add(new Vector2Int(mp.to.x, mp.to.y + 1));
             }
             return standable;
+        }
+
+        static bool Clear(LevelDefinition def, int x, int y)
+        {
+            char c = def.TileAt(x, y);
+            return c != '#' && c != 'L';
         }
 
         static HashSet<Vector2Int> Reachable(LevelDefinition def, HashSet<Vector2Int> standable, Vector2Int start)

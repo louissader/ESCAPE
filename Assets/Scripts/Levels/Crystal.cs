@@ -7,6 +7,13 @@ public class Crystal : MonoBehaviour
     void Awake()
     {
         GetComponent<BoxCollider2D>().isTrigger = true;
+    }
+
+    void Start()
+    {
+        // Registration MUST happen in Start: SceneManager.sceneLoaded (which
+        // resets the tracker) fires after Awake but before Start — coins
+        // registered in Awake were being zeroed and never counted.
         CrystalTracker.RegisterInLevel();
     }
 

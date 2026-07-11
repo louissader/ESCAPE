@@ -197,7 +197,7 @@ namespace Escape.EditorAutomation
             def.checkpoints = new[] { V(11, 16), V(19, 29) };
             def.movingPlatforms = new[]
             {
-                new LevelDefinition.MovingPlatformPlacement { from = V(26, 19), to = V(26, 25), speed = 2.0f },
+                new LevelDefinition.MovingPlatformPlacement { from = V(26, 19), to = V(22, 24), speed = 2.0f },
             };
             def.boundsMin = V(0, 0);
             def.boundsMax = V(78, 44);
@@ -372,7 +372,7 @@ namespace Escape.EditorAutomation
             };
             def.leverGroups = new[]
             {
-                new LevelDefinition.LeverBridgeGroup { lever = V(36, 5), bridgeTiles = new[] { V(45, 1), V(46, 1), V(47, 1), V(48, 1) } },
+                new LevelDefinition.LeverBridgeGroup { lever = V(36, 5), bridgeTiles = new[] { V(45, 2), V(46, 2), V(47, 2), V(48, 2) } },
             };
             def.powerUpOne = new[] { V(28, 19) };
             def.powerUpTwo = new[] { V(7, 4) };
@@ -419,7 +419,8 @@ namespace Escape.EditorAutomation
             g.Platform(71, 21, 3);
             g.Platform(62, 29, 3);
             g.Platform(71, 35, 3);
-            g.Platform(60, 38, 31);
+            g.Platform(72, 38, 2);
+            g.Platform(77, 38, 14);
             g.Platform(84, 41, 4);
             g.Block(66, 42, 2, 2);
 
@@ -436,8 +437,8 @@ namespace Escape.EditorAutomation
             {
                 new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(13, 1), patrolSpan = 3.0f },
                 new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(20, 6), moveRange = 3.0f },
-                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(26, 1), patrolSpan = 4.0f },
-                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(38, 3) },
+                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(35, 6), patrolSpan = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(40, 3) },
                 new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(50, 6) },
                 new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(46, 5), moveRange = 2.0f },
                 new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(64, 16), moveRange = 1.5f },
@@ -453,7 +454,7 @@ namespace Escape.EditorAutomation
             def.powerUpTwo = new[] { V(10, 1) };
             def.hearts = new[] { V(37, 3), V(52, 6), V(66, 39) };
             def.crystals = new[] { V(6, 5), V(18, 6), V(71, 22) };
-            def.checkpoints = new[] { V(24, 1), V(38, 3) };
+            def.checkpoints = new[] { V(24, 1), V(36, 3) };
             def.movingPlatforms = new[]
             {
                 new LevelDefinition.MovingPlatformPlacement { from = V(68, 3), to = V(68, 37), speed = 1.6f, isLavaRiserRide = true },
