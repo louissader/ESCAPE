@@ -54,64 +54,78 @@ namespace Escape.EditorAutomation
         // ------------------------------------------------------------------
         static LevelDefinition CreateLevel4()
         {
-            var g = new LevelGridBuilder(84, 24);
+            var g = new LevelGridBuilder(90, 30);
             g.Floor(0);
-            g.Clear(26, 0, 6, 1);            // pit A (bridged)
-            g.Lava(56, 1, 8); g.Platform(56, 0, 8);  // lava pit B on floor
-            // Hall 1: gentle intro, ceiling deco.
-            g.Platform(8, 4, 6);             // crystal shelf (jump 4)
-            g.Stairs(18, 1, 3);              // up to lever 1 ledge
-            g.Platform(22, 4, 4);            // lever 1 ledge
-            // Hall 2 (after pit A): patrol floor + upper walk.
-            g.Platform(34, 5, 10);           // skeleton patrol balcony
-            g.Stairs(32, 1, 2);              // access to balcony (paired route)
-            g.Platform(46, 3, 4);            // lever 2 ledge
-            g.Platform(50, 7, 5);            // crystal ledge high (double jump from balcony)
-            // Hall 3: approach to lava pit B, exit plateau.
-            g.Stairs(66, 1, 3);
-            g.Platform(72, 4, 12);           // exit plateau
-            g.Wall(83, 0, 24); g.Wall(0, 0, 24); // side walls
+            g.Wall(0, 1, 29);
+            g.Wall(89, 1, 29);
+            g.Wall(4, 1, 4);
+            g.Platform(8, 3, 4);
+            g.Wall(11, 1, 3);
+            g.Platform(13, 5, 3);
+            g.Platform(18, 7, 4);
+            g.Lava(23, 1, 10);
+            g.Platform(32, 7, 5);
+            g.Wall(33, 1, 6);
+            g.Platform(27, 11, 3);
+            g.Block(26, 26, 3, 3);
+            g.Wall(38, 1, 3);
+            g.Platform(37, 10, 3);
+            g.Platform(42, 12, 3);
+            g.Platform(47, 14, 3);
+            g.Platform(50, 17, 4);
+            g.Platform(50, 21, 5);
+            g.Platform(49, 24, 6);
+            g.Wall(46, 1, 4);
+            g.Platform(40, 15, 2);
+            g.Platform(34, 18, 3);
+            g.Platform(39, 22, 3);
+            g.Block(44, 26, 2, 3);
+            g.Lava(55, 1, 12);
+            g.Platform(63, 24, 5);
+            g.Platform(70, 23, 4);
+            g.Platform(75, 21, 4);
+            g.Platform(80, 19, 8);
+            g.Platform(68, 27, 3);
+            g.Wall(68, 1, 5);
+            g.Wall(78, 1, 4);
+            g.Block(58, 27, 2, 2);
 
             var def = ScriptableObject.CreateInstance<LevelDefinition>();
             def.levelNumber = 4;
             def.title = "Skeleton Halls";
             def.zone = LevelDefinition.Zone.Grotto;
             def.tileGrid = g.Emit();
-            def.player1Spawn = V(3, 1);
-            def.player2Spawn = V(5, 1);
-            def.exit1 = V(78, 5);
-            def.exit2 = V(80, 5);
-            def.powerUpOne = new[] { V(10, 5) };      // shoot early — skeletons need it
-            def.powerUpTwo = new[] { V(12, 1) };
+            def.player1Spawn = V(2, 1);
+            def.player2Spawn = V(3, 1);
+            def.exit1 = V(84, 20);
+            def.exit2 = V(85, 20);
             def.enemies = new[]
             {
-                new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(14, 1), patrolSpan = 5 },
-                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(38, 6), patrolSpan = 4 },
-                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(40, 1), patrolSpan = 6 },
-                new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(50, 1), patrolSpan = 4 },
-                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(62, 6), moveRange = 2.5f },
-                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(74, 5), patrolSpan = 4 },
+                new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(9, 1), patrolSpan = 4.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(15, 1), patrolSpan = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(34, 8), patrolSpan = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(45, 17), moveRange = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(48, 20), moveRange = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(65, 25), patrolSpan = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(72, 27), moveRange = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(81, 20), patrolSpan = 3.0f },
             };
             def.leverGroups = new[]
             {
-                // Lever 1 (hall 1 ledge) opens bridge A over pit A.
-                new LevelDefinition.LeverBridgeGroup
-                {
-                    lever = V(23, 5),
-                    bridgeTiles = new[] { V(26, 0), V(28, 0), V(30, 0) },
-                },
-                // Lever 2 (hall 2) opens bridge B over the lava pit.
-                new LevelDefinition.LeverBridgeGroup
-                {
-                    lever = V(47, 4),
-                    bridgeTiles = new[] { V(56, 2), V(58, 2), V(60, 2), V(62, 2) },
-                },
+                new LevelDefinition.LeverBridgeGroup { lever = V(21, 8), bridgeTiles = new[] { V(23, 7), V(24, 7), V(25, 7), V(26, 7), V(27, 7), V(28, 7), V(29, 7), V(30, 7), V(31, 7) } },
+                new LevelDefinition.LeverBridgeGroup { lever = V(53, 25), bridgeTiles = new[] { V(55, 24), V(56, 24), V(57, 24), V(58, 24), V(59, 24), V(60, 24), V(61, 24), V(62, 24) } },
             };
-            def.hearts = new[] { V(33, 6), V(65, 4) };
-            def.crystals = new[] { V(10, 5), V(52, 8), V(44, 6) };
-            def.checkpoints = new[] { V(34, 6) };
+            def.powerUpOne = new[] { V(19, 8) };
+            def.powerUpTwo = new[] { V(43, 13) };
+            def.hearts = new[] { V(21, 8), V(37, 11), V(51, 25), V(71, 24) };
+            def.crystals = new[] { V(28, 12), V(35, 19), V(40, 23) };
+            def.checkpoints = new[] { V(32, 8), V(50, 25) };
+            def.movingPlatforms = new[]
+            {
+                new LevelDefinition.MovingPlatformPlacement { from = V(37, 16), to = V(37, 21), speed = 1.0f },
+            };
             def.boundsMin = V(0, 0);
-            def.boundsMax = V(84, 24);
+            def.boundsMax = V(90, 30);
             return def;
         }
 
@@ -121,57 +135,75 @@ namespace Escape.EditorAutomation
         // ------------------------------------------------------------------
         static LevelDefinition CreateLevel5()
         {
-            var g = new LevelGridBuilder(72, 36);
+            var g = new LevelGridBuilder(78, 44);
             g.Floor(0);
-            g.Wall(0, 0, 36); g.Wall(71, 0, 36);
-            // Entry corridor with eye ambush.
-            g.Platform(10, 4, 5);
-            g.Lava(20, 1, 6); g.Platform(20, 0, 6);
-            g.Platform(22, 2, 2);    // stepping island over the lava (gap <= 5)
-            // Shaft (x 30-46): climbing platforms zig-zag, 6 wide so the
-            // horizontal hop is exactly 5 tiles; moving platform spans the
-            // tall final jump both directions (paired route).
-            g.Platform(30, 3, 6);
-            g.Platform(41, 6, 6);
-            g.Platform(30, 9, 6);
-            g.Platform(41, 12, 6);
-            g.Platform(30, 15, 6);   // checkpoint shelf
-            g.Platform(41, 18, 6);
-            g.Platform(30, 21, 6);
-            // Upper gallery to exit.
-            g.Platform(46, 24, 26);
-            g.Platform(60, 28, 6);   // crystal ledge above gallery
+            g.Wall(4, 1, 42);
+            g.Wall(52, 1, 42);
+            g.Lava(20, 1, 10);
+            g.Lava(36, 1, 10);
+            g.Platform(8, 3, 6);
+            g.Platform(15, 6, 6);
+            g.Platform(23, 9, 6);
+            g.Platform(17, 12, 6);
+            g.Platform(9, 15, 6);
+            g.Platform(15, 18, 7);
+            g.Platform(9, 21, 6);
+            g.Platform(15, 24, 6);
+            g.Platform(24, 25, 7);
+            g.Platform(17, 28, 6);
+            g.Platform(24, 31, 6);
+            g.Platform(16, 34, 6);
+            g.Platform(22, 37, 8);
+            g.Platform(24, 40, 10);
+            g.Platform(31, 7, 5);
+            g.Platform(38, 5, 6);
+            g.Platform(45, 4, 5);
+            g.Platform(34, 31, 5);
+            g.Platform(44, 31, 5);
+            g.Platform(14, 37, 5);
+            g.Platform(8, 39, 5);
+            g.Platform(30, 12, 4);
+            g.Platform(33, 16, 4);
+            g.Wall(51, 1, 8);
+            g.Block(48, 8, 4, 6);
+            g.Clear(48, 9, 2, 2);
+            g.Block(13, 41, 2, 2);
+            g.Block(36, 41, 2, 2);
+            g.Block(44, 41, 2, 2);
+
             var def = ScriptableObject.CreateInstance<LevelDefinition>();
             def.levelNumber = 5;
             def.title = "The Depths";
             def.zone = LevelDefinition.Zone.Depths;
             def.tileGrid = g.Emit();
-            def.player1Spawn = V(3, 1);
-            def.player2Spawn = V(5, 1);
-            def.exit1 = V(66, 25);
-            def.exit2 = V(68, 25);
-            def.powerUpOne = new[] { V(11, 5) };
-            def.powerUpTwo = new[] { V(13, 1) };
+            def.player1Spawn = V(6, 1);
+            def.player2Spawn = V(7, 1);
+            def.exit1 = V(28, 41);
+            def.exit2 = V(29, 41);
             def.enemies = new[]
             {
-                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(16, 6) },
-                new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(33, 4), patrolSpan = 2 },
-                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(38, 14) },
-                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(43, 20), moveRange = 2f },
-                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(52, 27), moveRange = 3f },
-                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(58, 26) },
-                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(52, 25), patrolSpan = 8 },
+                new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(17, 7), patrolSpan = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.BatPassive, position = V(22, 8), moveRange = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(16, 20), moveRange = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(31, 23), moveRange = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(27, 26), patrolSpan = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(22, 33), moveRange = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(24, 36), moveRange = 2.0f },
             };
+            def.leverGroups = new[]
+            {
+                new LevelDefinition.LeverBridgeGroup { lever = V(36, 32), bridgeTiles = new[] { V(39, 31), V(40, 31), V(41, 31), V(42, 31), V(43, 31) } },
+            };
+            def.powerUpOne = new[] { V(12, 16) };
+            def.hearts = new[] { V(45, 5), V(18, 19), V(28, 38) };
+            def.crystals = new[] { V(47, 5), V(46, 32), V(10, 40) };
+            def.checkpoints = new[] { V(11, 16), V(19, 29) };
             def.movingPlatforms = new[]
             {
-                // Shaft escalator: connects mid-shaft shelf to the gallery.
-                new LevelDefinition.MovingPlatformPlacement { from = V(36, 22), to = V(44, 24), speed = 2f },
+                new LevelDefinition.MovingPlatformPlacement { from = V(26, 19), to = V(26, 25), speed = 2.0f },
             };
-            def.hearts = new[] { V(31, 16), V(48, 25) };
-            def.crystals = new[] { V(23, 3), V(43, 13), V(62, 29) };
-            def.checkpoints = new[] { V(32, 16) };
             def.boundsMin = V(0, 0);
-            def.boundsMax = V(72, 36);
+            def.boundsMax = V(78, 44);
             return def;
         }
 
@@ -182,48 +214,79 @@ namespace Escape.EditorAutomation
         // ------------------------------------------------------------------
         static LevelDefinition CreateLevel6()
         {
-            var g = new LevelGridBuilder(96, 26);
+            var g = new LevelGridBuilder(100, 30);
             g.Floor(0);
-            g.Wall(0, 0, 26); g.Wall(95, 0, 26);
-            // Corridor 1: lava stretch with island hops, frogs on islands.
-            g.Lava(12, 1, 26); g.Platform(12, 0, 26);
-            g.Platform(16, 2, 3); g.Platform(23, 2, 3); g.Platform(30, 2, 3);
-            // Rest zone + shooting-bat arena with shield spots.
-            g.Platform(42, 4, 6);           // high sniper bat ledge
-            g.Stairs(46, 1, 2);
-            // Corridor 2: higher lava run with staggered hops.
-            g.Lava(56, 1, 22); g.Platform(56, 0, 22);
-            g.Platform(58, 3, 3); g.Platform(64, 2, 3); g.Platform(70, 4, 3); g.Platform(75, 2, 3);
-            // Exit hill with paired stairs.
-            g.Stairs(82, 1, 3);
-            g.Platform(88, 4, 8);
+            g.Wall(0, 0, 30);
+            g.Wall(99, 0, 30);
+            g.Lava(6, 1, 17);
+            g.Platform(6, 0, 17);
+            g.Lava(55, 1, 10);
+            g.Platform(55, 0, 10);
+            g.Block(9, 1, 2, 2);
+            g.Block(14, 1, 2, 2);
+            g.Block(19, 1, 2, 2);
+            g.Platform(4, 5, 2);
+            g.Platform(14, 6, 2);
+            g.Platform(9, 8, 2);
+            g.Wall(28, 1, 3);
+            g.Wall(32, 1, 3);
+            g.Wall(38, 1, 4);
+            g.Wall(45, 1, 4);
+            g.Wall(50, 1, 3);
+            g.Platform(27, 2, 3);
+            g.Platform(29, 3, 3);
+            g.Platform(35, 6, 3);
+            g.Platform(41, 6, 3);
+            g.Platform(46, 8, 3);
+            g.Platform(44, 11, 2);
+            g.Platform(38, 12, 3);
+            g.Platform(49, 8, 5);
+            g.Platform(51, 2, 2);
+            g.Platform(57, 9, 2);
+            g.Platform(62, 9, 3);
+            g.Platform(66, 3, 3);
+            g.Platform(70, 6, 3);
+            g.Platform(67, 9, 3);
+            g.Platform(71, 12, 3);
+            g.Platform(67, 15, 3);
+            g.Platform(63, 16, 2);
+            g.Platform(70, 18, 4);
+            g.Platform(76, 18, 14);
+            g.Block(20, 25, 2, 3);
+            g.Block(44, 24, 2, 4);
+            g.Block(72, 23, 2, 4);
+
             var def = ScriptableObject.CreateInstance<LevelDefinition>();
             def.levelNumber = 6;
             def.title = "Frogmarch";
             def.zone = LevelDefinition.Zone.Depths;
             def.tileGrid = g.Emit();
             def.player1Spawn = V(3, 1);
-            def.player2Spawn = V(5, 1);
-            def.exit1 = V(90, 5);
-            def.exit2 = V(92, 5);
-            def.powerUpOne = new[] { V(8, 1) };
-            def.powerUpTwo = new[] { V(10, 1) };
+            def.player2Spawn = V(2, 1);
+            def.exit1 = V(86, 19);
+            def.exit2 = V(88, 19);
             def.enemies = new[]
             {
-                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(17, 3) },
-                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(24, 3) },
-                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(31, 3) },
-                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(45, 8), moveRange = 2f },
-                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(59, 4) },
-                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(71, 5) },
-                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(66, 9), moveRange = 2.5f },
-                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(85, 7) },
+                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(10, 3), patrolSpan = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(19, 3), patrolSpan = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(36, 1), patrolSpan = 4.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(33, 9), moveRange = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(40, 11), moveRange = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(46, 12), moveRange = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(69, 11), moveRange = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(66, 1), patrolSpan = 2.0f },
             };
-            def.hearts = new[] { V(44, 5), V(52, 1), V(80, 1) };
-            def.crystals = new[] { V(26, 4), V(47, 6), V(72, 6) };
-            def.checkpoints = new[] { V(50, 1) };
+            def.leverGroups = new[]
+            {
+                new LevelDefinition.LeverBridgeGroup { lever = V(52, 3), bridgeTiles = new[] { V(55, 2), V(56, 2), V(57, 2), V(58, 2), V(59, 2), V(60, 2), V(61, 2), V(62, 2), V(63, 2), V(64, 2) } },
+            };
+            def.powerUpOne = new[] { V(26, 1) };
+            def.powerUpTwo = new[] { V(30, 5) };
+            def.hearts = new[] { V(14, 3), V(41, 7), V(54, 1) };
+            def.crystals = new[] { V(15, 7), V(44, 12), V(64, 17) };
+            def.checkpoints = new[] { V(25, 1), V(65, 1) };
             def.boundsMin = V(0, 0);
-            def.boundsMax = V(96, 26);
+            def.boundsMax = V(100, 30);
             return def;
         }
 
@@ -236,53 +299,91 @@ namespace Escape.EditorAutomation
         // ------------------------------------------------------------------
         static LevelDefinition CreateLevel7()
         {
-            var g = new LevelGridBuilder(100, 30);
+            var g = new LevelGridBuilder(100, 34);
             g.Floor(0);
-            g.Wall(0, 0, 30); g.Wall(99, 0, 30);
-            // The divider slab between lanes (y=8..9), with connector gaps.
-            g.Block(14, 8, 70, 2);
-            g.Clear(30, 8, 3, 2);    // connector 1
-            g.Clear(52, 8, 3, 2);    // connector 2
-            g.Clear(72, 8, 3, 2);    // connector 3
-            // Upper lane platforms (enter via stairs at start).
-            g.Stairs(6, 1, 5);       // up to lane top (y~5→ but slab at 8; stairs reach y=5; add hop)
-            g.Platform(16, 12, 6); g.Platform(26, 14, 6); g.Platform(36, 12, 6);
-            g.Platform(46, 15, 6); g.Platform(58, 13, 6); g.Platform(68, 15, 6);
-            // Low ceilings on upper lane forcing crouch (deco slabs above walk).
-            g.Block(40, 16, 4, 1); g.Block(62, 17, 4, 1);
-            // Lower lane obstacles: tall steps P2 boosts P1 over, stairs pair them.
-            g.Wall(24, 1, 4); g.Stairs(20, 1, 2);
-            g.Wall(48, 1, 4); g.Stairs(44, 1, 2);
-            g.Wall(78, 1, 5); g.Stairs(84, 1, 3, -1);
-            // Reunion chamber + exit plateau.
-            g.Platform(88, 6, 12);
+            g.Wall(0, 1, 33);
+            g.Wall(99, 1, 33);
+            g.Block(1, 11, 16, 3);
+            g.Block(25, 11, 14, 3);
+            g.Block(47, 11, 12, 3);
+            g.Block(67, 11, 12, 3);
+            g.Platform(6, 3, 4);
+            g.Platform(13, 5, 4);
+            g.Platform(20, 3, 4);
+            g.Platform(27, 6, 4);
+            g.Platform(34, 4, 4);
+            g.Platform(41, 7, 4);
+            g.Platform(48, 5, 4);
+            g.Platform(55, 8, 4);
+            g.Platform(62, 6, 4);
+            g.Platform(69, 9, 4);
+            g.Platform(76, 7, 4);
+            g.Platform(83, 9, 4);
+            g.Platform(18, 7, 2);
+            g.Platform(20, 10, 2);
+            g.Platform(18, 13, 2);
+            g.Platform(45, 9, 2);
+            g.Platform(43, 12, 2);
+            g.Platform(45, 15, 2);
+            g.Platform(60, 9, 2);
+            g.Platform(62, 12, 2);
+            g.Platform(60, 15, 2);
+            g.Platform(80, 10, 2);
+            g.Platform(82, 13, 2);
+            g.Platform(80, 16, 2);
+            g.Platform(20, 16, 4);
+            g.Platform(27, 18, 4);
+            g.Platform(34, 16, 4);
+            g.Platform(41, 19, 4);
+            g.Platform(48, 17, 4);
+            g.Platform(55, 20, 4);
+            g.Platform(62, 18, 4);
+            g.Platform(69, 21, 4);
+            g.Platform(76, 19, 4);
+            g.Platform(83, 17, 4);
+            g.Platform(33, 19, 2);
+            g.Platform(34, 22, 3);
+            g.Platform(52, 2, 2);
+            g.Platform(69, 24, 3);
+            g.Platform(90, 11, 8);
+            g.Platform(87, 15, 3);
+            g.Lava(45, 1, 4);
+            g.Block(46, 20, 6, 2);
+            g.Block(28, 21, 4, 2);
+            g.Block(23, 26, 2, 2);
+            g.Block(73, 26, 2, 2);
+
             var def = ScriptableObject.CreateInstance<LevelDefinition>();
             def.levelNumber = 7;
             def.title = "Twin Trials";
             def.zone = LevelDefinition.Zone.Depths;
             def.tileGrid = g.Emit();
-            def.player1Spawn = V(3, 1);
-            def.player2Spawn = V(5, 1);
-            def.exit1 = V(92, 7);
-            def.exit2 = V(94, 7);
-            def.powerUpOne = new[] { V(8, 1) };
-            def.powerUpTwo = new[] { V(10, 1) };
+            def.player1Spawn = V(2, 1);
+            def.player2Spawn = V(3, 1);
+            def.exit1 = V(92, 12);
+            def.exit2 = V(94, 12);
             def.enemies = new[]
             {
-                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(22, 18), moveRange = 2f },
-                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(34, 4), moveRange = 2.5f },
-                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(40, 13), patrolSpan = 2 },
-                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(56, 5) },
-                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(62, 1) },
-                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(64, 20), moveRange = 2f },
-                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(84, 12), moveRange = 3f },
-                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(90, 7), patrolSpan = 4 },
+                new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(8, 4), patrolSpan = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.BatPassive, position = V(24, 11), moveRange = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(28, 19), patrolSpan = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(56, 21), moveRange = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(70, 22), moveRange = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(56, 9), patrolSpan = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(70, 10), patrolSpan = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(60, 12), moveRange = 2.0f },
             };
-            def.hearts = new[] { V(31, 10), V(53, 10), V(86, 1) };
-            def.crystals = new[] { V(28, 16), V(48, 17), V(73, 10) };
-            def.checkpoints = new[] { V(52, 1) };
+            def.leverGroups = new[]
+            {
+                new LevelDefinition.LeverBridgeGroup { lever = V(36, 5), bridgeTiles = new[] { V(45, 1), V(46, 1), V(47, 1), V(48, 1) } },
+            };
+            def.powerUpOne = new[] { V(28, 19) };
+            def.powerUpTwo = new[] { V(7, 4) };
+            def.hearts = new[] { V(49, 6), V(58, 21), V(86, 10) };
+            def.crystals = new[] { V(35, 23), V(53, 3), V(70, 25) };
+            def.checkpoints = new[] { V(44, 8), V(50, 14) };
             def.boundsMin = V(0, 0);
-            def.boundsMax = V(100, 30);
+            def.boundsMax = V(100, 34);
             return def;
         }
 
@@ -293,25 +394,38 @@ namespace Escape.EditorAutomation
         // ------------------------------------------------------------------
         static LevelDefinition CreateLevel8()
         {
-            var g = new LevelGridBuilder(90, 44);
+            var g = new LevelGridBuilder(92, 46);
             g.Floor(0);
-            g.Wall(0, 0, 44); g.Wall(89, 0, 44);
-            // Act 1: gauntlet recap on the ground floor.
-            g.Lava(14, 1, 8); g.Platform(14, 0, 8);
-            g.Platform(16, 3, 2); g.Platform(20, 2, 2);
-            g.Wall(30, 1, 4); g.Stairs(26, 1, 2);      // boost + paired stairs
-            g.Platform(38, 4, 8);                        // checkpoint plateau
-            g.Lava(50, 1, 6); g.Platform(50, 0, 6);
-            g.Platform(51, 3, 2);
-            // Act 2: approach hall to the shaft (x 60-76 is the shaft).
-            g.Platform(58, 3, 4);
-            // Shaft walls: interior clear from y=1 up; ride platform inside.
-            g.Block(60, 1, 2, 40); g.Block(74, 1, 2, 40);
-            g.Clear(60, 1, 2, 4);  // shaft entrance doorway
-            // Shaft ledges for bat perches (not path-critical).
-            g.Platform(64, 14, 3); g.Platform(69, 22, 3); g.Platform(64, 30, 3);
-            // Summit gallery + exit.
-            g.Platform(62, 38, 26);
+            g.Wall(0, 0, 46);
+            g.Wall(91, 0, 46);
+            g.Platform(6, 4, 3);
+            g.Wall(11, 1, 3);
+            g.Platform(14, 3, 2);
+            g.Platform(18, 5, 3);
+            g.Lava(16, 1, 6);
+            g.Platform(16, 0, 6);
+            g.Platform(15, 3, 2);
+            g.Platform(19, 3, 2);
+            g.Block(30, 1, 3, 4);
+            g.Stairs(25, 1, 2, 1);
+            g.Platform(28, 3, 2);
+            g.Platform(34, 5, 3);
+            g.Platform(37, 2, 5);
+            g.Platform(49, 2, 5);
+            g.Lava(43, 1, 5);
+            g.Platform(43, 0, 5);
+            g.Platform(52, 5, 3);
+            g.Wall(56, 1, 4);
+            g.Block(60, 6, 2, 38);
+            g.Block(77, 6, 2, 32);
+            g.Platform(62, 13, 3);
+            g.Platform(71, 21, 3);
+            g.Platform(62, 29, 3);
+            g.Platform(71, 35, 3);
+            g.Platform(60, 38, 31);
+            g.Platform(84, 41, 4);
+            g.Block(66, 42, 2, 2);
+
             var def = ScriptableObject.CreateInstance<LevelDefinition>();
             def.levelNumber = 8;
             def.title = "ESCAPE";
@@ -319,36 +433,36 @@ namespace Escape.EditorAutomation
             def.tileGrid = g.Emit();
             def.player1Spawn = V(3, 1);
             def.player2Spawn = V(5, 1);
-            def.exit1 = V(82, 39);
-            def.exit2 = V(84, 39);
-            def.powerUpOne = new[] { V(8, 1) };
-            def.powerUpTwo = new[] { V(10, 1) };
+            def.exit1 = V(85, 39);
+            def.exit2 = V(87, 39);
             def.enemies = new[]
             {
-                new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(24, 1), patrolSpan = 3 },
-                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(41, 5), patrolSpan = 3 },
-                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(46, 8), moveRange = 3f },
-                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(53, 4) },
-                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(57, 8) },
-                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(65, 15), moveRange = 1.5f },
-                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(70, 23), moveRange = 1.5f },
-                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(65, 31), moveRange = 1.5f },
-                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(70, 39), patrolSpan = 6 },
-                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(78, 41), moveRange = 3f },
+                new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(13, 1), patrolSpan = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(20, 6), moveRange = 3.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(26, 1), patrolSpan = 4.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Frog, position = V(38, 3) },
+                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(50, 6) },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(46, 5), moveRange = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(64, 16), moveRange = 1.5f },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(73, 24), moveRange = 1.5f },
+                new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(64, 32), moveRange = 1.5f },
+                new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(70, 39), patrolSpan = 6.0f },
             };
+            def.leverGroups = new[]
+            {
+                new LevelDefinition.LeverBridgeGroup { lever = V(38, 3), bridgeTiles = new[] { V(43, 2), V(44, 2), V(45, 2), V(46, 2), V(47, 2) } },
+            };
+            def.powerUpOne = new[] { V(8, 1) };
+            def.powerUpTwo = new[] { V(10, 1) };
+            def.hearts = new[] { V(37, 3), V(52, 6), V(66, 39) };
+            def.crystals = new[] { V(6, 5), V(18, 6), V(71, 22) };
+            def.checkpoints = new[] { V(24, 1), V(38, 3) };
             def.movingPlatforms = new[]
             {
-                // THE ride: shaft floor to summit; LavaRiser chases beneath.
-                new LevelDefinition.MovingPlatformPlacement
-                {
-                    from = V(67, 2), to = V(67, 37), speed = 1.6f, isLavaRiserRide = true,
-                },
+                new LevelDefinition.MovingPlatformPlacement { from = V(68, 3), to = V(68, 37), speed = 1.6f, isLavaRiserRide = true },
             };
-            def.hearts = new[] { V(39, 5), V(58, 4), V(66, 39) };
-            def.crystals = new[] { V(17, 4), V(42, 6), V(70, 24) };
-            def.checkpoints = new[] { V(40, 5) };  // BEFORE the riser only
             def.boundsMin = V(0, 0);
-            def.boundsMax = V(90, 44);
+            def.boundsMax = V(92, 46);
             return def;
         }
     }
