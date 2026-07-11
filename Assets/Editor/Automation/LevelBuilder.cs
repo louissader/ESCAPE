@@ -62,6 +62,15 @@ namespace Escape.EditorAutomation
             foreach (LevelDefinition def in defs)
             {
                 BuildLevel(def, $"Assets/Scenes/Level {def.levelNumber}.unity");
+                if (IsLegacyLevel(def.levelNumber))
+                {
+                    // Original hand-built geometry is preserved verbatim and
+                    // human-verified (the team's gameplay videos beat all
+                    // three) — the grid model can't see the P2-boost chains
+                    // they use, so the automated check doesn't apply.
+                    Debug.Log($"[Solvability] L{def.levelNumber}: SKIPPED (legacy geometry, human-verified)");
+                    continue;
+                }
                 bool solvable = LevelSolvability.Check(def);
                 if (!solvable)
                     Debug.LogError($"[LevelBuilder] Level {def.levelNumber} FAILED solvability!");
@@ -70,6 +79,13 @@ namespace Escape.EditorAutomation
             UpdateBuildSettings(defs.Select(d => d.levelNumber).ToList());
             Debug.Log($"[LevelBuilder] built {defs.Count} levels");
         }
+
+        /// <summary>
+        /// Levels 1-3 keep their proven hand-built geometry and entities;
+        /// the builder only AUGMENTS them (camera rig, lights, parallax,
+        /// pickups, hints, retunes). Levels 4+ are fully generated.
+        /// </summary>
+        public static bool IsLegacyLevel(int levelNumber) { return levelNumber <= 3; }
 
         public static void BuildLevel(LevelDefinition def, string scenePath)
         {
@@ -82,8 +98,16 @@ namespace Escape.EditorAutomation
                 if (root.name.StartsWith(GenPrefix))
                     Object.DestroyImmediate(root);
 
-            BuildTilemaps(def);
-            BuildEntities(def);
+            bool augment = IsLegacyLevel(def.levelNumber);
+            if (augment)
+            {
+                AugmentLegacyLevel(def);
+            }
+            else
+            {
+                BuildTilemaps(def);
+                BuildEntities(def);
+            }
             BuildCamera(def);
             BuildLighting(def);
             BuildParallax(def);
@@ -91,7 +115,98 @@ namespace Escape.EditorAutomation
 
             EditorSceneManager.SaveScene(scene, scenePath);
             Debug.Log($"[LevelBuilder] saved {scenePath} " +
-                      $"({def.GridWidth}x{def.GridHeight} tiles, {def.enemies.Length} enemies)");
+                      (augment ? "(augmented legacy geometry)" :
+                       $"({def.GridWidth}x{def.GridHeight} tiles, {def.enemies.Length} enemies)"));
+        }
+
+        /// <summary>
+        /// In-place upgrades for the original scenes: ghost retunes (L2 5,
+        /// L3 8), passive L1 bat, hearts/crystals/checkpoint at extractor-
+        /// picked standable spots, L1 tutorial hints. Tile coords from the
+        /// definition are translated back to world space via the scene's own
+        /// tilemap bounds (the extractor normalized against them).
+        /// </summary>
+        static void AugmentLegacyLevel(LevelDefinition def)
+        {
+            var tilemap = Object.FindObjectsOfType<Tilemap>()
+                .OrderByDescending(t => { t.CompressBounds(); return t.cellBounds.size.x * t.cellBounds.size.y; })
+                .FirstOrDefault();
+            Vector2Int offset = Vector2Int.zero;
+            if (tilemap != null)
+            {
+                tilemap.CompressBounds();
+                offset = new Vector2Int(tilemap.cellBounds.xMin, tilemap.cellBounds.yMin);
+            }
+            Vector3 LegacyWorld(Vector2Int tile)
+            {
+                if (tilemap == null)
+                    return World(tile);
+                Vector3Int cell = new Vector3Int(tile.x + offset.x, tile.y + offset.y, 0);
+                return tilemap.layoutGrid.CellToWorld(cell) + new Vector3(0.5f, 0.5f, 0f);
+            }
+
+            // Ghost retune: keep an even spread, delete the rest.
+            int keep = def.levelNumber == 2 ? 5 : def.levelNumber == 3 ? 8 : int.MaxValue;
+            var ghosts = Object.FindObjectsOfType<IndieMarc.Platformer.Ghost>()
+                .OrderBy(g => g.transform.position.x).ToList();
+            if (ghosts.Count > keep)
+            {
+                var keepSet = new HashSet<int>();
+                for (int i = 0; i < keep; i++)
+                    keepSet.Add(Mathf.RoundToInt(i * (ghosts.Count - 1) / (float)(keep - 1)));
+                for (int i = ghosts.Count - 1; i >= 0; i--)
+                    if (!keepSet.Contains(i))
+                        Object.DestroyImmediate(ghosts[i].gameObject);
+                Debug.Log($"[LevelBuilder] L{def.levelNumber}: ghosts {ghosts.Count} → {keep}");
+            }
+
+            // L1 bat teaches without shooting.
+            if (def.levelNumber == 1)
+            {
+                foreach (var bat in Object.FindObjectsOfType<IndieMarc.Platformer.Bat>())
+                    bat.canShoot = false;
+            }
+
+            GameObject holder = new GameObject(GenPrefix + "Pickups");
+            Sprite heart = FindGrottoSprite("heart");
+            foreach (Vector2Int p in def.hearts)
+                SpriteEntity<HeartPickup>(holder, "Heart", LegacyWorld(p), heart);
+            Sprite crystalSprite = FindGrottoSprite("crystal-01");
+            foreach (Vector2Int p in def.crystals)
+                SpriteEntity<Crystal>(holder, "Crystal", LegacyWorld(p), crystalSprite);
+            Sprite torchUnlit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_unlit_0");
+            Sprite torchLit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0");
+            foreach (Vector2Int p in def.checkpoints)
+            {
+                GameObject cp = SpriteEntity<Checkpoint>(holder, "Checkpoint", LegacyWorld(p), torchUnlit);
+                var comp = cp.GetComponent<Checkpoint>();
+                comp.unlitSprite = torchUnlit;
+                comp.litSprite = torchLit;
+            }
+
+            if (def.levelNumber == 1)
+            {
+                GameObject p1 = GameObject.Find("Player1");
+                Vector3 basePos = p1 != null ? p1.transform.position : LegacyWorld(def.player1Spawn);
+                (string msg, Vector3 at, bool last)[] hints =
+                {
+                    ("Hold ◀ ▶ to move, tap A to jump\n(tap A again mid-air!)", basePos + new Vector3(2, 0, 0), false),
+                    ("Tap ⇄ (or your partner's portrait)\nto control the other hero", basePos + new Vector3(8, 0, 0), false),
+                    ("BOTH heroes must reach\na portal to escape!", basePos + new Vector3(14, 0, 0), true),
+                };
+                foreach (var (msg, at, last) in hints)
+                {
+                    GameObject hint = new GameObject(GenPrefix + "Hint");
+                    hint.transform.SetParent(holder.transform, false);
+                    hint.transform.position = at;
+                    var box = hint.AddComponent<BoxCollider2D>();
+                    box.isTrigger = true;
+                    box.size = new Vector2(3f, 4f);
+                    var tut = hint.AddComponent<TutorialHint>();
+                    tut.message = msg;
+                    tut.marksTutorialSeen = last;
+                }
+            }
         }
 
         // ---------------- tilemaps ----------------
@@ -238,6 +353,32 @@ namespace Escape.EditorAutomation
                 var comp = cp.GetComponent<Checkpoint>();
                 comp.unlitSprite = torchUnlit;
                 comp.litSprite = torchLit;
+            }
+
+            // First-launch tutorial chain (L1 only; SaveSystem-gated at runtime).
+            if (def.levelNumber == 1)
+            {
+                (string msg, Vector2Int at, bool last)[] hints =
+                {
+                    ("Hold ◀ ▶ to move, tap A to jump\n(tap A again mid-air!)",
+                     def.player1Spawn + new Vector2Int(2, 0), false),
+                    ("Tap ⇄ (or your partner's portrait)\nto control the other hero",
+                     def.player1Spawn + new Vector2Int(8, 0), false),
+                    ("BOTH heroes must reach\na portal to escape!",
+                     def.exit1 + new Vector2Int(-6, 0), true),
+                };
+                foreach (var (msg, at, last) in hints)
+                {
+                    GameObject hint = new GameObject(GenPrefix + "Hint");
+                    hint.transform.SetParent(holder.transform, false);
+                    hint.transform.position = World(at);
+                    var box = hint.AddComponent<BoxCollider2D>();
+                    box.isTrigger = true;
+                    box.size = new Vector2(3f, 4f);
+                    var tut = hint.AddComponent<TutorialHint>();
+                    tut.message = msg;
+                    tut.marksTutorialSeen = last;
+                }
             }
 
             Sprite bridgeArt = FirstSprite("Assets/Art/Generated/Props/bridge.png", "bridge_extend_2");

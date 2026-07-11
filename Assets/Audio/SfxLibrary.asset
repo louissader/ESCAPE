@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 123fa52e6a2e94c03a4c2c2c8c3faed7, type: 3}
+  m_Name: SfxLibrary
+  m_EditorClassIdentifier: 
+  entries:
+  - id: bridge
+    clip: {fileID: 8300000, guid: 4152232a9ca854d919bcc904ecd1407a, type: 3}
+  - id: checkpoint
+    clip: {fileID: 8300000, guid: c515c4f3eb4b2436d987445734b5d137, type: 3}
+  - id: crystal
+    clip: {fileID: 8300000, guid: 242e07baec8fd461daa2ee74e369a01f, type: 3}
+  - id: death
+    clip: {fileID: 8300000, guid: 5263998bccc4b4fd4a3d9fee16d0ffd1, type: 3}
+  - id: enemy_poof
+    clip: {fileID: 8300000, guid: 60c55a189532c4cf6861188c0f623632, type: 3}
+  - id: fireball_impact
+    clip: {fileID: 8300000, guid: e593967054eb04261830cf4f976b2c15, type: 3}
+  - id: hurt
+    clip: {fileID: 8300000, guid: 6d36e314f62ba422e9484f30e0a8256c, type: 3}
+  - id: jump
+    clip: {fileID: 8300000, guid: 2dbd3c7713ad145b4b3280d2f57858cf, type: 3}
+  - id: land
+    clip: {fileID: 8300000, guid: 247338702be484d6c892157939e573d9, type: 3}
+  - id: level_complete
+    clip: {fileID: 8300000, guid: dd4c2f6f9addc410a8e517357906a836, type: 3}
+  - id: lever
+    clip: {fileID: 8300000, guid: 8c504e849dcc64dd6a8369f575cfd3fb, type: 3}
+  - id: powerup
+    clip: {fileID: 8300000, guid: 77d580bb44bb84d9aa541f826d604cda, type: 3}
+  - id: shoot
+    clip: {fileID: 8300000, guid: 06caee3fe2e3a4fe088c9a75def148fb, type: 3}
+  - id: swap
+    clip: {fileID: 8300000, guid: e20cf627305724fac87a9e444a5c8c65, type: 3}
+  - id: ui_tap
+    clip: {fileID: 8300000, guid: 38b5d8704b66840778654d219fb3bfb5, type: 3}

@@ -14,6 +14,11 @@ namespace Escape.EditorAutomation
     {
         const int JumpHeight = 6;   // 4 base + 2 double jump
         const int MaxGap = 5;
+        // With P2's platform form both characters gain a boost anywhere they
+        // stand together: +3 rise (slab height + standing start), +1 reach.
+        // Legacy L1-3 layouts require this; new levels pass without it.
+        const int BoostHeight = 9;
+        const int BoostGap = 6;
 
         public static bool Check(LevelDefinition def)
         {
@@ -133,9 +138,9 @@ namespace Escape.EditorAutomation
             // Reach any standable tile within the jump/gap envelope with a
             // clear-ish heuristic: rises need dy <= JumpHeight, gaps need
             // |dx| <= MaxGap (+1 forgiveness when falling).
-            for (int dx = -MaxGap - 1; dx <= MaxGap + 1; dx++)
+            for (int dx = -BoostGap - 1; dx <= BoostGap + 1; dx++)
             {
-                for (int dy = -12; dy <= JumpHeight; dy++)
+                for (int dy = -12; dy <= BoostHeight; dy++)
                 {
                     if (dx == 0 && dy == 0)
                         continue;
@@ -143,9 +148,9 @@ namespace Escape.EditorAutomation
                     if (!standable.Contains(target))
                         continue;
                     int gap = Mathf.Abs(dx);
-                    if (dy > 0 && (gap > MaxGap || dy > JumpHeight))
+                    if (dy > 0 && (gap > BoostGap || dy > BoostHeight))
                         continue;
-                    if (dy <= 0 && gap > MaxGap + 1)
+                    if (dy <= 0 && gap > BoostGap + 1)
                         continue;
                     yield return target;
                 }

@@ -18,7 +18,7 @@ namespace Escape.EditorAutomation
             var scene = EditorSceneManager.OpenScene("Assets/Scenes/Level Scene.unity", OpenSceneMode.Single);
 
             // Remove old per-level buttons/locks (Lvl X Button, Lock images).
-            foreach (GameObject go in Object.FindObjectsOfType<GameObject>(true).ToArray())
+            foreach (GameObject go in Object.FindObjectsOfType<GameObject>(true))
             {
                 if (go == null) continue;
                 string n = go.name;

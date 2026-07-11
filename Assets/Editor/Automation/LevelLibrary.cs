@@ -127,15 +127,17 @@ namespace Escape.EditorAutomation
             // Entry corridor with eye ambush.
             g.Platform(10, 4, 5);
             g.Lava(20, 1, 6); g.Platform(20, 0, 6);
-            // Shaft (x 30-46): climbing platforms zig-zag; moving platform
-            // spans the tall middle jump both directions (paired route).
-            g.Platform(30, 3, 5);
-            g.Platform(40, 6, 5);
-            g.Platform(30, 9, 5);
-            g.Platform(40, 12, 5);
-            g.Platform(30, 15, 5);   // checkpoint shelf
-            g.Platform(40, 18, 5);
-            g.Platform(30, 21, 5);
+            g.Platform(22, 2, 2);    // stepping island over the lava (gap <= 5)
+            // Shaft (x 30-46): climbing platforms zig-zag, 6 wide so the
+            // horizontal hop is exactly 5 tiles; moving platform spans the
+            // tall final jump both directions (paired route).
+            g.Platform(30, 3, 6);
+            g.Platform(41, 6, 6);
+            g.Platform(30, 9, 6);
+            g.Platform(41, 12, 6);
+            g.Platform(30, 15, 6);   // checkpoint shelf
+            g.Platform(41, 18, 6);
+            g.Platform(30, 21, 6);
             // Upper gallery to exit.
             g.Platform(46, 24, 26);
             g.Platform(60, 28, 6);   // crystal ledge above gallery
@@ -154,7 +156,7 @@ namespace Escape.EditorAutomation
             {
                 new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(16, 6) },
                 new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(33, 4), patrolSpan = 2 },
-                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(37, 14) },
+                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(38, 14) },
                 new LevelDefinition.EnemyPlacement { type = ET.Bat, position = V(43, 20), moveRange = 2f },
                 new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(52, 27), moveRange = 3f },
                 new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(58, 26) },
@@ -166,7 +168,7 @@ namespace Escape.EditorAutomation
                 new LevelDefinition.MovingPlatformPlacement { from = V(36, 22), to = V(44, 24), speed = 2f },
             };
             def.hearts = new[] { V(31, 16), V(48, 25) };
-            def.crystals = new[] { V(23, 3), V(42, 13), V(62, 29) };
+            def.crystals = new[] { V(23, 3), V(43, 13), V(62, 29) };
             def.checkpoints = new[] { V(32, 16) };
             def.boundsMin = V(0, 0);
             def.boundsMax = V(72, 36);
