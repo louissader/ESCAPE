@@ -36,16 +36,26 @@ a human holds; everything above it was automated and verified in-repo.
   custom AndroidManifest, iOS 13.0+, landscape-locked, bottom-edge deferred
   system gestures, adaptive + flat icons, splash color matched.
 
-## Verify before upload
+## Verified automatically (2026-07-11)
 
-- [ ] `Builds/Android/ESCAPE.aab` exists and `llvm-readelf -l` on its .so
-      files shows LOAD align >= 0x4000 (16 KB pages).
-- [ ] Exported Xcode project contains `PrivacyInfo.xcprivacy` (Unity 2022.3
-      embeds engine privacy manifests; verify post-export).
-- [ ] Editmode + playmode test results XML: all green.
-- [ ] Device pass: touch controls on a phone (Swap) and tablet (Co-op);
-      Android 15/16 back-gesture pauses the game (predictive back disabled);
-      iPad windowed aspect ratios (~4:3 and ~2.4:1) keep HUD/camera sane
+- [x] `Builds/Android/ESCAPE.aab` built: **28 MB**, ARM64-only, IL2CPP,
+      target API 36. All four .so files LOAD-aligned **0x4000 (16 KB)**
+      (lib_burst_generated, libil2cpp, libmain, libunity) — Play compliant.
+- [x] `Builds/iOS/Unity-iPhone.xcodeproj` exported;
+      `UnityFramework/PrivacyInfo.xcprivacy` present; Info.plist confirms
+      UIRequiresFullScreen + landscape-only orientations.
+- [x] Tests: EditMode 7/7, PlayMode 4/4 (incl. B1/B2 regressions, all-8-
+      levels smoke, virtual-input drive, auto-swap handoff, B14 bat-kill).
+- [x] Levels 4-8 pass automated solvability; L1-3 keep original
+      human-verified geometry (augmented in place).
+- [x] Android graphics: Vulkan + GLES3 (legacy GLES2 entry removed —
+      incompatible with the project's Linear color space).
+
+## Verify on device (human)
+
+- [ ] Touch controls on a phone (Swap) and tablet (Co-op).
+- [ ] Android 15/16 back-gesture pauses the game (predictive back disabled).
+- [ ] iPad windowed aspect ratios (~4:3 and ~2.4:1) keep HUD/camera sane
       (UIRequiresFullScreen is deprecated as of iPadOS 26 — see TN3192).
 
 ## Human actions — Apple

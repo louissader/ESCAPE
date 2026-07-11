@@ -26,6 +26,16 @@ namespace Escape.EditorAutomation
             PlayerSettings.iOS.buildNumber = "1";
             PlayerSettings.Android.bundleVersionCode = 1;
 
+            // Graphics: the project renders in LINEAR color space, but the
+            // legacy Android API list included OpenGLES2 (incompatible —
+            // build error). Vulkan + GLES3 covers every minSdk-24 device.
+            PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
+            PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[]
+            {
+                UnityEngine.Rendering.GraphicsDeviceType.Vulkan,
+                UnityEngine.Rendering.GraphicsDeviceType.OpenGLES3,
+            });
+
             // Android: IL2CPP + ARM64-only (Play 64-bit requirement; the
             // project previously shipped ARMv7+X86 with NO 64-bit slice).
             PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
