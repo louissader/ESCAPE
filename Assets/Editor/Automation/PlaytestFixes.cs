@@ -125,11 +125,25 @@ namespace Escape.EditorAutomation
                 {
                     sr.sprite = sprite;
                     sr.color = Color.white;
-                    // The orb is 16px @16 PPU = 1 world unit at scale 1; the
-                    // old prefab carried a x10 scale for the tiny grotto icon.
-                    root.transform.localScale = Vector3.one;
+                    // 1.4 tiles: at 1 tile the orbs read too small next to
+                    // the 1.5-tall heroes (playtest feedback).
+                    root.transform.localScale = Vector3.one * 1.4f;
+
+                    // Animate the pulse — all 4 frames were generated but
+                    // only frame 0 was ever shown.
+                    var frames = AssetDatabase.LoadAllAssetsAtPath(sheet)
+                        .OfType<Sprite>().OrderBy(f => f.name).ToArray();
+                    if (frames.Length > 1)
+                    {
+                        var cycler = sr.gameObject.GetComponent<SpriteCycler>();
+                        if (cycler == null)
+                            cycler = sr.gameObject.AddComponent<SpriteCycler>();
+                        cycler.frames = frames;
+                        cycler.fps = 6f;
+                    }
+
                     PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
-                    Debug.Log($"[PlaytestFixes] powerup orb → {prefabPath}");
+                    Debug.Log($"[PlaytestFixes] powerup orb (1.4x, pulsing) → {prefabPath}");
                 }
             }
             finally

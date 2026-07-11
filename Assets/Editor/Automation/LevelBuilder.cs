@@ -362,9 +362,9 @@ namespace Escape.EditorAutomation
             }
 
             foreach (Vector2Int p in def.powerUpOne)
-                NormalizeSpriteHeight(Place(PowerUp1Prefab, World(p), holder, "PowerUpOne", asPrefab: true), 1.0f);
+                NormalizeSpriteHeight(Place(PowerUp1Prefab, World(p), holder, "PowerUpOne", asPrefab: true), 1.4f);
             foreach (Vector2Int p in def.powerUpTwo)
-                NormalizeSpriteHeight(Place(PowerUp2Prefab, World(p), holder, "PowerUpTwo", asPrefab: true), 1.0f);
+                NormalizeSpriteHeight(Place(PowerUp2Prefab, World(p), holder, "PowerUpTwo", asPrefab: true), 1.4f);
 
             Sprite heart = FindGrottoSprite("heart");
             foreach (Vector2Int p in def.hearts)

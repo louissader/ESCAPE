@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: -1771780195214094570}
   - component: {fileID: -2652321071028021831}
   - component: {fileID: 879561820430789004}
+  - component: {fileID: 235873938025883293}
   m_Layer: 0
   m_Name: PowerUpTwo
   m_TagString: PowerUpTwo
@@ -32,7 +33,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 1.5353165, y: -1.2027103, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1.4, y: 1.4, z: 1.4}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -208,3 +209,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bobSpeed: 2
   bobHeight: 0.5
+--- !u!114 &235873938025883293
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 198420}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df5d0f9240c144df0849043b3b59617d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  frames:
+  - {fileID: 362728983, guid: 7e303346078394e19b3c75ca1ce308ad, type: 3}
+  - {fileID: -182232366, guid: 7e303346078394e19b3c75ca1ce308ad, type: 3}
+  - {fileID: 286415667, guid: 7e303346078394e19b3c75ca1ce308ad, type: 3}
+  - {fileID: -1787561010, guid: 7e303346078394e19b3c75ca1ce308ad, type: 3}
+  fps: 6
