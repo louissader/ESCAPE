@@ -171,9 +171,9 @@ namespace Escape.EditorAutomation
             Sprite heart = FindGrottoSprite("heart");
             foreach (Vector2Int p in def.hearts)
                 SpriteEntity<HeartPickup>(holder, "Heart", LegacyWorld(p), heart, 0.8f);
-            Sprite crystalSprite = FirstSprite("Assets/Art/Generated/Props/star_coin.png", "star_coin_spin_0");
-            foreach (Vector2Int p in def.crystals)
-                AddCoinSpin(SpriteEntity<Crystal>(holder, "Crystal", LegacyWorld(p), crystalSprite, 0.9f));
+            Sprite starSpriteL = FirstSprite("Assets/Art/Generated/Props/star.png", "star_twinkle_0");
+            if (def.crystals.Length > 0)
+                AddCoinSpin(SpriteEntity<Crystal>(holder, "Star", LegacyWorld(def.crystals[0]), starSpriteL, 1.1f));
             Sprite torchUnlit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_unlit_0");
             Sprite torchLit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0");
             foreach (Vector2Int p in def.checkpoints)
@@ -370,9 +370,10 @@ namespace Escape.EditorAutomation
             foreach (Vector2Int p in def.hearts)
                 SpriteEntity<HeartPickup>(holder, "Heart", World(p), heart, 0.8f);
 
-            Sprite crystal = FirstSprite("Assets/Art/Generated/Props/star_coin.png", "star_coin_spin_0");
-            foreach (Vector2Int p in def.crystals)
-                AddCoinSpin(SpriteEntity<Crystal>(holder, "Crystal", World(p), crystal, 0.9f));
+            Sprite starSprite = FirstSprite("Assets/Art/Generated/Props/star.png", "star_twinkle_0");
+            // Mario-style: exactly ONE star per level (first authored spot).
+            if (def.crystals.Length > 0)
+                AddCoinSpin(SpriteEntity<Crystal>(holder, "Star", World(def.crystals[0]), starSprite, 1.1f));
 
             Sprite torchUnlit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_unlit_0");
             Sprite torchLit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0");
@@ -521,7 +522,7 @@ namespace Escape.EditorAutomation
             if (coin == null)
                 return;
             var frames = AssetDatabase.LoadAllAssetsAtPath(
-                    "Assets/Art/Generated/Props/star_coin.png")
+                    "Assets/Art/Generated/Props/star.png")
                 .OfType<Sprite>().OrderBy(sp => sp.name).ToArray();
             if (frames.Length < 2)
                 return;

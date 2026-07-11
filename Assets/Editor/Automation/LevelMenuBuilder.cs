@@ -55,10 +55,10 @@ namespace Escape.EditorAutomation
             if (grid == null)
                 grid = gridObj.AddComponent<LevelSelectGrid>();
             grid.lockSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Lock.png");
-            grid.coinFilled = LoadSprite("Assets/Art/Generated/Props/star_coin.png", "star_coin_spin_0");
-            grid.coinEmpty = LoadSprite("Assets/Art/Generated/Props/star_coin_empty.png", "star_coin_empty_empty_0");
-            if (grid.coinEmpty == null)   // single-frame sheets may import as Single mode
-                grid.coinEmpty = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Generated/Props/star_coin_empty.png");
+            grid.starFilled = LoadSprite("Assets/Art/Generated/Props/star.png", "star_twinkle_0");
+            grid.starEmpty = LoadSprite("Assets/Art/Generated/Props/star_empty.png", "star_empty_empty_0");
+            if (grid.starEmpty == null)   // single-frame sheets may import as Single mode
+                grid.starEmpty = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Generated/Props/star_empty.png");
             EditorUtility.SetDirty(grid);
 
             EditorSceneManager.SaveScene(scene);

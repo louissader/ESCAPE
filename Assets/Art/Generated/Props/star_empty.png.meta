@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: dd79466fb67414e8b8fd356d2979d5f9
+guid: f09d7992352c648a88efff3f722d6da0
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -123,7 +123,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: star_coin_spin_0
+      name: star_empty_empty_0
       rect:
         serializedVersion: 2
         x: 0
@@ -137,71 +137,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: d51ed12ad7259d64711a1117efcefb49
-      internalID: -1143550343
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: star_coin_spin_1
-      rect:
-        serializedVersion: 2
-        x: 16
-        y: 0
-        width: 16
-        height: 16
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 32b023ef4c0be93937e5868da0929292
-      internalID: 1795609934
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: star_coin_spin_2
-      rect:
-        serializedVersion: 2
-        x: 32
-        y: 0
-        width: 16
-        height: 16
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: b68da7a7a8835cb3b0c2e80304545878
-      internalID: -21634590
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: star_coin_spin_3
-      rect:
-        serializedVersion: 2
-        x: 48
-        y: 0
-        width: 16
-        height: 16
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: feafee5146987693546d875a8a455d4e
-      internalID: -1033710610
+      spriteID: a37d3d98090b21603fa4399470145eb8
+      internalID: 1400654834
       vertices: []
       indices: 
       edges: []
@@ -209,7 +146,7 @@ TextureImporter:
     outline: []
     physicsShape: []
     bones: []
-    spriteID: 3a30d54ebc2b7484e8eb5bf969fa80f7
+    spriteID: 7bb0c19118b464c3382ff34a0387da98
     internalID: 0
     vertices: []
     indices: 
@@ -217,10 +154,7 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     nameFileIdTable:
-      star_coin_spin_0: -1143550343
-      star_coin_spin_1: 1795609934
-      star_coin_spin_2: -21634590
-      star_coin_spin_3: -1033710610
+      star_empty_empty_0: 1400654834
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

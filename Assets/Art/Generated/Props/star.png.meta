@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: a13b7d8ce98ec48cdb6c3cc7ad03f3eb
+guid: c36642aaf473641bba974c515e180742
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -123,7 +123,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: star_coin_empty_empty_0
+      name: star_twinkle_0
       rect:
         serializedVersion: 2
         x: 0
@@ -137,8 +137,71 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: dd68254d0c0fd2f8ce3b9eaa16bb7ea1
-      internalID: -44730796
+      spriteID: 31ecef8f07e8500ea9339a2e83d82234
+      internalID: -1904453131
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: star_twinkle_1
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 65997b2fe7f218e07ea854115239c9e1
+      internalID: -714803906
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: star_twinkle_2
+      rect:
+        serializedVersion: 2
+        x: 32
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ffc3679dedb1d8c866a867b1e687ee26
+      internalID: -823723379
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: star_twinkle_3
+      rect:
+        serializedVersion: 2
+        x: 48
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a10dc22ac99cc65b0a528dbfcd01c497
+      internalID: 1051279362
       vertices: []
       indices: 
       edges: []
@@ -146,7 +209,7 @@ TextureImporter:
     outline: []
     physicsShape: []
     bones: []
-    spriteID: 54f3474c4ea51424b937e41c8d38251f
+    spriteID: 8ec5c66294b5a48ec90ed598bb5c8e25
     internalID: 0
     vertices: []
     indices: 
@@ -154,7 +217,10 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     nameFileIdTable:
-      star_coin_empty_empty_0: -44730796
+      star_twinkle_0: -1904453131
+      star_twinkle_1: -714803906
+      star_twinkle_2: -823723379
+      star_twinkle_3: 1051279362
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

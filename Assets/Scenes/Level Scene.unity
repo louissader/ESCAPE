@@ -422,8 +422,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   lockSprite: {fileID: 21300000, guid: 27c4e55438cb8a647b7439a46e823a3a, type: 3}
-  coinFilled: {fileID: -1143550343, guid: dd79466fb67414e8b8fd356d2979d5f9, type: 3}
-  coinEmpty: {fileID: -44730796, guid: a13b7d8ce98ec48cdb6c3cc7ad03f3eb, type: 3}
+  starFilled: {fileID: -1904453131, guid: c36642aaf473641bba974c515e180742, type: 3}
+  starEmpty: {fileID: 1400654834, guid: f09d7992352c648a88efff3f722d6da0, type: 3}
 --- !u!1 &916120407
 GameObject:
   m_ObjectHideFlags: 0

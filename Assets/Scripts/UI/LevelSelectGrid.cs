@@ -9,8 +9,8 @@ using TMPro;
 public class LevelSelectGrid : MonoBehaviour
 {
     public Sprite lockSprite;       // Assets/Lock.png, wired by editor automation
-    public Sprite coinFilled;       // star_coin spin_0
-    public Sprite coinEmpty;        // dashed outline slot (uncollected)
+    public Sprite starFilled;       // gold star (collected)
+    public Sprite starEmpty;        // hollow outline star (uncollected)
 
     void Start()
     {
@@ -101,28 +101,25 @@ public class LevelSelectGrid : MonoBehaviour
 
         if (unlocked)
         {
-            // Mario-style star-coin slots: dashed empty outline until each
-            // coin is collected, gold coin once it is.
-            int stars = SaveSystem.StarsForLevel(level);
-            for (int slot = 0; slot < 3; slot++)
-            {
-                GameObject coinObj = new GameObject($"Coin{slot}", typeof(RectTransform));
-                coinObj.transform.SetParent(tile.transform, false);
-                var rect = (RectTransform)coinObj.transform;
-                rect.anchorMin = new Vector2(0.5f, 0);
-                rect.anchorMax = new Vector2(0.5f, 0);
-                rect.pivot = new Vector2(0.5f, 0);
-                rect.sizeDelta = new Vector2(44, 44);
-                rect.anchoredPosition = new Vector2((slot - 1) * 52, 14);
-                Image coin = coinObj.AddComponent<Image>();
-                coin.sprite = slot < stars ? coinFilled : coinEmpty;
-                coin.preserveAspect = true;
-                coin.raycastTarget = false;
-                if (coin.sprite == null)
-                    coin.color = slot < stars
-                        ? new Color(0.96f, 0.75f, 0.35f)
-                        : new Color(1f, 1f, 1f, 0.25f);
-            }
+            // Mario-style: ONE star icon per level, always present — hollow
+            // until the level's star is collected, then the same icon fills.
+            bool hasStar = SaveSystem.StarsForLevel(level) >= 1;
+            GameObject starObj = new GameObject("Star", typeof(RectTransform));
+            starObj.transform.SetParent(tile.transform, false);
+            var rect = (RectTransform)starObj.transform;
+            rect.anchorMin = new Vector2(0.5f, 0);
+            rect.anchorMax = new Vector2(0.5f, 0);
+            rect.pivot = new Vector2(0.5f, 0);
+            rect.sizeDelta = new Vector2(56, 56);
+            rect.anchoredPosition = new Vector2(0, 12);
+            Image star = starObj.AddComponent<Image>();
+            star.sprite = hasStar ? starFilled : starEmpty;
+            star.preserveAspect = true;
+            star.raycastTarget = false;
+            if (star.sprite == null)
+                star.color = hasStar
+                    ? new Color(0.96f, 0.75f, 0.35f)
+                    : new Color(1f, 1f, 1f, 0.25f);
         }
     }
 

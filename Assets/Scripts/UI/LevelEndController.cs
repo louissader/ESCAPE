@@ -56,7 +56,9 @@ public class LevelEndController : MonoBehaviour
         if (winTitle != null)
             winTitle.text = $"LEVEL {level} COMPLETE";
         if (winCrystals != null)
-            winCrystals.text = $"STAR COINS  {crystals} / {totalCrystals}";
+            winCrystals.text = crystals >= 1 && totalCrystals >= 1
+                ? "\u2605  STAR COLLECTED!"
+                : "\u2606  the star is still out there...";
         if (nextButton != null)
         {
             // Final level: the button becomes the doorway to the ending —

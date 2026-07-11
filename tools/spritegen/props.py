@@ -687,47 +687,36 @@ def _star_points(cx, cy, r_outer, r_inner):
     return inside
 
 def gen_star_coin():
-    """16x16 star coin: 4-frame spin (NSMB style) + a single 'empty slot'
-    outline frame for the level-select (uncollected state)."""
+    """16x16 Mario-style level star: star.png = filled gold star, 4-frame
+    twinkle; star_empty.png = hollow outline star (uncollected state).
+    One star per level — the level-select icon transitions empty -> filled."""
     gold = hex_rgba("#f4c05a")
     gold_dark = hex_rgba("#c98a2e")
     gold_hot = hex_rgba("#fff3c4")
-    coin_face = hex_rgba("#8a5a1c")
-
-    # spin widths simulate rotation: full, mid, thin, mid
-    widths = [14, 10, 4, 10]
-    frames = []
-    for f, w in enumerate(widths):
-        img = blank(16, 16)
-        cx = 8
-        half = w // 2
-        # coin disc (ellipse squashed horizontally by spin)
-        for y in range(1, 15):
-            dy = (y - 8) / 7.0
-            span = int(half * math.sqrt(max(0.0, 1 - dy * dy)))
-            for x in range(cx - span, cx + span):
-                if 0 <= x < 16:
-                    edge = (x == cx - span or x == cx + span - 1 or y in (1, 14))
-                    img[y, x] = gold_dark if edge else gold
-        # star emboss only on the wide frames
-        if w >= 10:
-            for (px, py) in _star_points(8, 8, 5 if w == 14 else 4, 2):
-                img[py, px] = coin_face
-        # top-left shine
-        if w == 14:
-            img[3, 5] = gold_hot
-            img[2, 6] = gold_hot
-        frames.append(outline(img, K))
-    save_strip(frames, [f"spin_{i}" for i in range(4)], out_path("Props", "star_coin.png"))
-
-    # Empty slot: dashed chain-link circle outline (Mario world-map style).
-    slot = blank(16, 16)
     grey = hex_rgba("#9aa7ad")
-    grey_dark = hex_rgba("#5c686e")
-    for i in range(24):
-        ang = i * (2 * math.pi / 24)
-        px = int(round(8 + 6.2 * math.cos(ang)))
-        py = int(round(8 + 6.2 * math.sin(ang)))
-        if 0 <= px < 16 and 0 <= py < 16 and i % 3 != 2:   # dashed
-            slot[py, px] = grey if i % 2 == 0 else grey_dark
-    save_single(slot, "empty_0", out_path("Props", "star_coin_empty.png"))
+
+    star_px = _star_points(8, 8, 7, 3)
+    inner_px = _star_points(8, 8, 5, 2)
+
+    frames = []
+    shine_spots = [(6, 4), (10, 5), (5, 9), (9, 10)]
+    for f in range(4):
+        img = blank(16, 16)
+        for (px, py) in star_px:
+            img[py, px] = gold_dark
+        for (px, py) in inner_px:
+            img[py, px] = gold
+        # roving twinkle highlight
+        sx, sy = shine_spots[f]
+        for (px, py) in [(sx, sy), (sx + 1, sy), (sx, sy + 1)]:
+            if (px, py) in star_px:
+                img[py, px] = gold_hot
+        frames.append(outline(img, K))
+    save_strip(frames, [f"twinkle_{i}" for i in range(4)], out_path("Props", "star.png"))
+
+    # Empty star: outline ring of the same silhouette, hollow center.
+    img = blank(16, 16)
+    for (px, py) in star_px:
+        if (px, py) not in inner_px:
+            img[py, px] = grey
+    save_single(outline(img, K), "empty_0", out_path("Props", "star_empty.png"))
