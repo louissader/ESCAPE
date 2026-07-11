@@ -36,6 +36,28 @@ namespace Escape.EditorAutomation
                 EditorApplication.Exit(2);
         }
 
+        [MenuItem("Escape/Run Playtest-Fix Pipeline")]
+        public static void RunPlaytestFixes()
+        {
+            int failed = 0;
+            failed += Step("SliceGeneratedSprites", SliceGeneratedSprites.Run);
+            failed += Step("PlayerPhysics+Speed", PlaytestFixes.FixPlayerPhysics);
+            failed += Step("RecolorPowerups", PlaytestFixes.RecolorPowerups);
+            failed += Step("PrefabVisualOverhaul", PrefabVisualOverhaul.Run);
+            failed += Step("BuildGameplayUIPrefab", HUDBuilder.BuildGameplayUIPrefab);
+            failed += Step("BuildTouchControlsPrefab", TouchControlsBuilder.BuildTouchControlsPrefab);
+            failed += Step("BuildAllLevels", LevelBuilder.BuildAllLevels);
+            failed += Step("StripLegacyUI", PlaytestFixes.StripLegacyUI);
+            failed += Step("RebuildLevelSelect", LevelMenuBuilder.Run);
+            failed += Step("FixNullMaterials", FixNullMaterials.Run);
+
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[MasterPipeline] PLAYTEST FIXES COMPLETE — {failed} step(s) failed" +
+                      (failed == 0 ? " 🎉" : ""));
+            if (failed > 0)
+                EditorApplication.Exit(2);
+        }
+
         static int Step(string name, Action action)
         {
             Debug.Log($"[MasterPipeline] ▶ {name}");

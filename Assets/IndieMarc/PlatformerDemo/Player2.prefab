@@ -129,7 +129,7 @@ Rigidbody2D:
   m_LinearDrag: 1
   m_AngularDrag: 1
   m_GravityScale: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: 0599113c218cb4fda8ff2b455361dc62, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -155,9 +155,9 @@ MonoBehaviour:
   player_id: 2
   max_hp: 100
   invulnerable: 0
-  move_accel: 30
-  move_deccel: 30
-  move_max: 30
+  move_accel: 120
+  move_deccel: 120
+  move_max: 9
   can_jump: 1
   double_jump: 0
   jump_strength: 15
@@ -209,7 +209,7 @@ BoxCollider2D:
   m_GameObject: {fileID: 1262357808126890}
   m_Enabled: 1
   m_Density: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: 0599113c218cb4fda8ff2b455361dc62, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -243,8 +243,8 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 0.55462915, y: 1.4406925}
-  m_EdgeRadius: 0
+  m_Size: {x: 0.8, y: 1.5}
+  m_EdgeRadius: 0.04
 --- !u!114 &295423308306002357
 MonoBehaviour:
   m_ObjectHideFlags: 0

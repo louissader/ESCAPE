@@ -5,16 +5,24 @@ hero palettes (crystal slab = WISP palette so it reads as P2's platform).
 """
 from __future__ import annotations
 
+import json
+import math
+import os
+
 from . import palette
 from .core import (
     blank,
+    blend,
     blit,
     grid,
     hex_rgba,
+    load_png,
     outline,
     out_path,
+    save_png,
     save_single,
     save_strip,
+    scale,
     set_opacity,
 )
 
@@ -71,45 +79,71 @@ def gen_lava():
 # ------------------------------------------------------------------ bridge
 
 def gen_bridge():
-    """16x16 stone bridge segment, 3-frame extend animation (left to right)."""
-    s = ENV["stone"]
-    sl = ENV["stone_light"]
-    sd = ENV["stone_dark"]
-    edge = ENV["cave_edge"]
-    c = {"S": s, "L": sl, "D": sd, "K": K}
+    """16x16 stone bridge segment, 6-frame 'magically forming' extend animation.
 
-    def slab(width):
+    Frame 0 is nearly empty (two anchor foundation stubs); frames 1-5 grow a
+    chunky, two-course masonry deck left-to-right, with a glowing warm leading
+    edge that reads as the stone materialising. The final frame is a solid,
+    seamless walkway (the deck fills columns 0..15 so a row of these tiles into
+    one continuous bridge). Underside carries a 2px cast shadow.
+    """
+    S = ENV["stone"]           # (48,83,78)  main block body
+    L = ENV["stone_light"]     # (74,132,124) top-lit face
+    D = ENV["stone_dark"]      # (36,48,46)  mortar seams / recesses
+    W = hex_rgba("#e07438")    # ember accent — bright warm forming glow
+    Wd = hex_rgba("#9a6e46")   # dim warm — settled warm top edge
+    Sh = hex_rgba("#141e1c")   # underside cast shadow (darker than stone_dark)
+
+    def make_deck():
+        """The full, final masonry deck (columns 0..15, tiles horizontally)."""
+        deck = blank(16, 16)
+        for x in range(16):
+            deck[3, x] = W if x % 2 == 0 else Wd          # warm glowing top edge
+            deck[4, x] = L                                 # lit walking surface
+            deck[5, x] = D if x % 4 == 2 else S            # upper course
+            deck[6, x] = D if x % 4 == 2 else S            #  seams @ x=2,6,10,14
+            deck[7, x] = D                                 # horizontal mortar line
+            deck[8, x] = D if x % 4 == 0 else S            # lower course (offset)
+            deck[9, x] = D if x % 4 == 0 else S            #  seams @ x=0,4,8,12
+            deck[10, x] = S                                # solid base row
+            deck[11, x] = Sh                               # cast shadow 1
+            deck[12, x] = Sh                               # cast shadow 2
+        return deck
+
+    deck = make_deck()
+    reveal = [0, 4, 7, 10, 13, 16]   # columns materialised per frame
+
+    def stub(img, x0):
+        """A rough foundation block (no lit top) at columns x0, x0+1."""
+        for x in (x0, x0 + 1):
+            for y in range(6, 13):
+                img[y, x] = deck[y, x]
+
+    frames = []
+    for f in range(6):
         img = blank(16, 16)
-        top = 5
-        seg = grid(
-            [
-                "L" * width,
-                "L" * width,
-                "S" * width,
-                "S" * width,
-                "S" * width,
-                "D" * width,
-            ],
-            c,
-        )
-        # brick seams (staggered)
-        for x in range(3, width, 4):
-            seg[2, x] = sd
-            seg[3, x] = sd
-        for x in range(1, width, 4):
-            seg[4, x] = sd
-        # underside support nubs
-        for x in range(2, width - 1, 5):
-            seg[5, x] = sd
-        blit(img, seg, 0, top)
-        # glowing leading edge while extending (reads as magic masonry)
-        if width < 16:
-            for y in range(top, top + 6):
-                img[y, width - 1] = edge
-        return outline(img, K)
+        r = reveal[f]
+        prev = reveal[f - 1] if f > 0 else 0
+        if r > 0:
+            img[:, 0:r] = deck[:, 0:r]
+        # far anchor: destination foundation, until the deck reaches it
+        if r < 14:
+            stub(img, 14)
+        # near anchor seed on the empty first frame
+        if f == 0:
+            stub(img, 0)
+        # magic: the freshly-formed frontier glows bright warm
+        if 0 < f < 5 and r > 0:
+            for x in range(prev, r):
+                img[3, x] = W
+            lead = r - 1
+            for y in range(3, 8):
+                img[y, lead] = W
+        frames.append(outline(img, K))
 
-    frames = [slab(6), slab(11), slab(16)]
-    save_strip(frames, [f"bridge_{i}" for i in range(3)], out_path("Props", "bridge.png"))
+    save_strip(
+        frames, [f"extend_{i}" for i in range(6)], out_path("Props", "bridge.png")
+    )
 
 
 # ------------------------------------------------------------------ lever
@@ -480,6 +514,133 @@ def gen_ui_buttons():
         save_single(img, name, out_path("UI", f"{name}.png"))
 
 
+# ------------------------------------------------------------------ powerup orbs
+
+def _orb_frames(pal, white_hex):
+    """4-frame pulsing power-up orb (16x16) in a hero palette.
+
+    Deep `primary` core, `secondary` mid body, mint/gold `highlight` +
+    near-white specular, dark outline. The pulse cycles core brightness (a
+    growing/shrinking bloom) and a soft 1px dithered halo that grows/shrinks.
+    """
+    core = pal["primary"]
+    mid = pal["secondary"]
+    hi = pal["highlight"]
+    Kp = pal["outline"]
+    white = hex_rgba(white_hex)
+
+    cx, cy = 7.5, 7.5
+    R = 5.0
+    bloom_r = [0.0, 1.3, 2.2, 1.3]   # brightness pulse (trough -> peak -> back)
+    halo_r = [5.8, 6.5, 7.2, 6.5]    # aura ring grows then shrinks
+
+    frames = []
+    for f in range(4):
+        img = blank(16, 16)
+        # solid orb: deep core -> bright mid body
+        for y in range(16):
+            for x in range(16):
+                d = math.hypot(x - cx, y - cy)
+                if d <= R:
+                    col = core if d <= 2.3 else mid
+                    if d <= bloom_r[f]:
+                        col = hi          # brightening core bloom at the peak
+                    img[y, x] = col
+        # upper-left specular highlight (reads as a glassy gem)
+        img[5, 6] = white
+        img[5, 7] = hi
+        img[6, 6] = hi
+        img[6, 5] = hi
+        img = outline(img, Kp)
+        # soft halo AFTER outlining so the aura stays a 1px dithered glow
+        hr = halo_r[f]
+        for y in range(16):
+            for x in range(16):
+                d = math.hypot(x - cx, y - cy)
+                if hr - 0.6 <= d <= hr + 0.6 and (x + y + f) % 2 == 0:
+                    if img[y, x, 3] == 0:
+                        img[y, x] = hi
+        frames.append(img)
+    return frames
+
+
+def gen_powerups():
+    """Blue (WISP / P2) and red (EMBER / P1) pulsing power-up orbs."""
+    wisp = _orb_frames(palette.WISP, "#dffcf0")
+    save_strip(
+        wisp, [f"pulse_{i}" for i in range(4)], out_path("Props", "powerup_wisp.png")
+    )
+    ember = _orb_frames(palette.EMBER, "#fff0c8")
+    save_strip(
+        ember, [f"pulse_{i}" for i in range(4)], out_path("Props", "powerup_ember.png")
+    )
+
+
+# ------------------------------------------------------------------ QA review sheet
+
+def _load_frames(category, name):
+    """Read a generated strip back and split it using its JSON manifest."""
+    png = out_path(category, f"{name}.png")
+    with open(os.path.splitext(png)[0] + ".json") as fh:
+        man = json.load(fh)
+    img = load_png(png)
+    fw = man["frameWidth"]
+    return [img[:, i * fw : (i + 1) * fw].copy() for i in range(len(man["frames"]))]
+
+
+def gen_props_review():
+    """QA contact sheet for the new bridge + powerups (next to the generator).
+
+    Shows: the bridge build sequence, six copies of the finished bridge tiled
+    into one continuous span, and both powerup orbs — each at 1x and 6x over a
+    dark cave background. Not written into Assets/.
+    """
+    bg = hex_rgba("#0b2230")
+    outer = hex_rgba("#101014")
+    bridge = _load_frames("Props", "bridge")
+    wisp = _load_frames("Props", "powerup_wisp")
+    ember = _load_frames("Props", "powerup_ember")
+
+    def lay(frames, gap):
+        fh, fw = frames[0].shape[:2]
+        n = len(frames)
+        row = blank(n * fw + gap * (n + 1), fh + 2 * gap)
+        row[:, :] = bg
+        x = gap
+        for fr in frames:
+            blend(row, fr, x, gap)
+            x += fw + gap
+        return row
+
+    def tile(frame, count):
+        fh, fw = frame.shape[:2]
+        row = blank(fw * count, fh)
+        row[:, :] = bg
+        for i in range(count):
+            blend(row, frame, i * fw, 0)
+        return row
+
+    rows = [
+        scale(lay(bridge, 1), 1),          # bridge build sequence, 1x
+        scale(lay(bridge, 1), 6),          # bridge build sequence, 6x
+        scale(tile(bridge[-1], 6), 1),     # finished bridge tiled x6, 1x (seam check)
+        scale(tile(bridge[-1], 6), 6),     # finished bridge tiled x6, 6x
+        scale(lay(wisp + ember, 1), 1),    # both orbs, 1x
+        scale(lay(wisp + ember, 1), 6),    # both orbs, 6x
+    ]
+
+    pad = 8
+    width = max(r.shape[1] for r in rows) + 2 * pad
+    height = sum(r.shape[0] for r in rows) + pad * (len(rows) + 1)
+    sheet = blank(width, height)
+    sheet[:, :] = outer
+    y = pad
+    for r in rows:
+        blit(sheet, r, pad, y)
+        y += r.shape[0] + pad
+    save_png(sheet, os.path.join(os.path.dirname(__file__), "props_review.png"))
+
+
 # ------------------------------------------------------------------ entry
 
 def generate():
@@ -490,6 +651,8 @@ def generate():
     gen_exit_portal()
     gen_checkpoint_torch()
     gen_ui_buttons()
+    gen_powerups()
+    gen_props_review()
 
 
 if __name__ == "__main__":

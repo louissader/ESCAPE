@@ -153,9 +153,50 @@ namespace Escape.EditorAutomation
                 SetPrivate(panel, "coopToggle", coop);
                 SetPrivate(panel, "resetConfirm", confirm.gameObject);
 
+                // ---------- Level-end panels (win + fail) ----------
+                LevelEndController endController = root.AddComponent<LevelEndController>();
+
+                RectTransform winPanel = NewRect("WinPanel", safeArea);
+                Stretch(winPanel);
+                Image winDim = winPanel.gameObject.AddComponent<Image>();
+                winDim.color = new Color(0.02f, 0.12f, 0.08f, 0.92f);
+                TextMeshProUGUI winTitle = MakeLabel(winPanel, "Title", "LEVEL COMPLETE", 76,
+                    new Vector2(0.5f, 0.5f), new Vector2(0, 260));
+                TextMeshProUGUI winCrystals = MakeLabel(winPanel, "Crystals", "CRYSTALS 0 / 3", 44,
+                    new Vector2(0.5f, 0.5f), new Vector2(0, 150));
+                Button nextBtn = MakeTextButton(winPanel, "Btn_Next", "NEXT LEVEL",
+                    new Vector2(0.5f, 0.5f), new Vector2(0, 30), new Vector2(560, 96));
+                UnityEventTools.AddPersistentListener(nextBtn.onClick, endController.OnNextLevel);
+                Button replayBtn = MakeTextButton(winPanel, "Btn_Replay", "REPLAY",
+                    new Vector2(0.5f, 0.5f), new Vector2(0, -90), new Vector2(560, 96));
+                UnityEventTools.AddPersistentListener(replayBtn.onClick, endController.OnReplay);
+                Button winSelectBtn = MakeTextButton(winPanel, "Btn_Select", "LEVEL SELECT",
+                    new Vector2(0.5f, 0.5f), new Vector2(0, -210), new Vector2(560, 96));
+                UnityEventTools.AddPersistentListener(winSelectBtn.onClick, endController.OnLevelSelect);
+
+                RectTransform failPanel = NewRect("FailPanel", safeArea);
+                Stretch(failPanel);
+                Image failDim = failPanel.gameObject.AddComponent<Image>();
+                failDim.color = new Color(0.14f, 0.02f, 0.02f, 0.92f);
+                MakeLabel(failPanel, "Title", "YOU FELL", 76, new Vector2(0.5f, 0.5f), new Vector2(0, 200));
+                Button retryBtn = MakeTextButton(failPanel, "Btn_Retry", "RETRY",
+                    new Vector2(0.5f, 0.5f), new Vector2(0, 40), new Vector2(560, 96));
+                UnityEventTools.AddPersistentListener(retryBtn.onClick, endController.OnRetry);
+                Button failSelectBtn = MakeTextButton(failPanel, "Btn_Select", "LEVEL SELECT",
+                    new Vector2(0.5f, 0.5f), new Vector2(0, -80), new Vector2(560, 96));
+                UnityEventTools.AddPersistentListener(failSelectBtn.onClick, endController.OnLevelSelect);
+
+                SetPrivate(endController, "winPanel", winPanel.gameObject);
+                SetPrivate(endController, "failPanel", failPanel.gameObject);
+                SetPrivate(endController, "winTitle", winTitle);
+                SetPrivate(endController, "winCrystals", winCrystals);
+                SetPrivate(endController, "nextButton", nextBtn.gameObject);
+
                 overlay.gameObject.SetActive(false);
                 settings.gameObject.SetActive(false);
                 confirm.gameObject.SetActive(false);
+                winPanel.gameObject.SetActive(false);
+                failPanel.gameObject.SetActive(false);
 
                 PrefabUtility.SaveAsPrefabAsset(root, PrefabPath, out bool ok);
                 Debug.Log($"[HUDBuilder] Saved {PrefabPath}: {ok}");

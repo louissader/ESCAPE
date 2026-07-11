@@ -101,7 +101,13 @@ public class GameState : MonoBehaviour
         if (!gameOverSequenceStarted)
         {
             gameOverSequenceStarted = true;
-            StartCoroutine(GameOverWaitAndReload());
+            AudioManager.PlaySfx("death");
+            // Prefer the interactive fail panel; fall back to the legacy
+            // fade + reload only if no GameplayUI is present.
+            if (LevelEndController.Instance != null)
+                LevelEndController.Instance.ShowFail();
+            else
+                StartCoroutine(GameOverWaitAndReload());
         }
     }
 
@@ -118,7 +124,13 @@ public class GameState : MonoBehaviour
             SaveSystem.OnLevelCompleted(level);
         CrystalTracker.RecordStars(level);
         AudioManager.PlaySfx("level_complete");
-        StartCoroutine(LevelCompleteWaitAndLoad());
+
+        // Interactive win panel (Next Level / Replay / Level Select) replaces
+        // the old auto-jump to level select that broke progression.
+        if (LevelEndController.Instance != null)
+            LevelEndController.Instance.ShowWin(level, CrystalTracker.Collected, CrystalTracker.Total);
+        else
+            StartCoroutine(LevelCompleteWaitAndLoad());
     }
 
     private IEnumerator GameOverWaitAndReload()

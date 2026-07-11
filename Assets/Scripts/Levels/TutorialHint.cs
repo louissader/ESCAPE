@@ -10,7 +10,8 @@ using TMPro;
 public class TutorialHint : MonoBehaviour
 {
     [TextArea] public string message = "";
-    public bool marksTutorialSeen = false;   // set on the LAST hint of the chain
+    public bool marksTutorialSeen = false;   // set on the LAST hint of the L1 onboarding chain
+    public bool alwaysShow = false;          // contextual per-mechanic hints ignore the seen-gate
 
     GameObject bubble;
     bool shown;
@@ -18,7 +19,9 @@ public class TutorialHint : MonoBehaviour
     void Awake()
     {
         GetComponent<BoxCollider2D>().isTrigger = true;
-        if (SaveSystem.TutorialSeen)
+        // First-launch onboarding hints vanish once seen; contextual hints
+        // (levers, lava, platform spots, ...) always show on level entry.
+        if (SaveSystem.TutorialSeen && !alwaysShow)
             Destroy(gameObject);
     }
 

@@ -26,7 +26,7 @@ namespace Escape.EditorAutomation
         const string Player2Prefab = "Assets/IndieMarc/PlatformerDemo/Player2.prefab";
         const string ExitPrefab = "Assets/GrottoEscapeArtwork/Prefabs/Enemies/Dragon.prefab";
         const string LeverPrefab = "Assets/IndieMarc/PlatformerDemo/Prefabs/Lever.prefab";
-        const string BridgePrefab = "Assets/GrottoEscapeArtwork/Prefabs/Bridge.prefab";
+        const string BridgePrefab = "Assets/GrottoEscapeArtwork/Prefabs/Misc/Bridge.prefab";
         const string PowerUp1Prefab = "Assets/GrottoEscapeArtwork/Prefabs/Misc/PowerUpOne.prefab";
         const string PowerUp2Prefab = "Assets/GrottoEscapeArtwork/Prefabs/Misc/PowerUpTwo.prefab";
         const string RuleTilePath = "Assets/GrottoEscapeArtwork/Sprites/GrottoRuleTile.asset";
@@ -170,15 +170,15 @@ namespace Escape.EditorAutomation
             GameObject holder = new GameObject(GenPrefix + "Pickups");
             Sprite heart = FindGrottoSprite("heart");
             foreach (Vector2Int p in def.hearts)
-                SpriteEntity<HeartPickup>(holder, "Heart", LegacyWorld(p), heart);
+                SpriteEntity<HeartPickup>(holder, "Heart", LegacyWorld(p), heart, 0.8f);
             Sprite crystalSprite = FindGrottoSprite("crystal-01");
             foreach (Vector2Int p in def.crystals)
-                SpriteEntity<Crystal>(holder, "Crystal", LegacyWorld(p), crystalSprite);
+                SpriteEntity<Crystal>(holder, "Crystal", LegacyWorld(p), crystalSprite, 0.9f);
             Sprite torchUnlit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_unlit_0");
             Sprite torchLit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0");
             foreach (Vector2Int p in def.checkpoints)
             {
-                GameObject cp = SpriteEntity<Checkpoint>(holder, "Checkpoint", LegacyWorld(p), torchUnlit);
+                GameObject cp = SpriteEntity<Checkpoint>(holder, "Checkpoint", LegacyWorld(p), torchUnlit, 1.6f);
                 var comp = cp.GetComponent<Checkpoint>();
                 comp.unlitSprite = torchUnlit;
                 comp.litSprite = torchLit;
@@ -195,17 +195,36 @@ namespace Escape.EditorAutomation
                     ("BOTH heroes must reach\na portal to escape!", basePos + new Vector3(14, 0, 0), true),
                 };
                 foreach (var (msg, at, last) in hints)
-                {
-                    GameObject hint = new GameObject(GenPrefix + "Hint");
-                    hint.transform.SetParent(holder.transform, false);
-                    hint.transform.position = at;
-                    var box = hint.AddComponent<BoxCollider2D>();
-                    box.isTrigger = true;
-                    box.size = new Vector2(3f, 4f);
-                    var tut = hint.AddComponent<TutorialHint>();
-                    tut.message = msg;
-                    tut.marksTutorialSeen = last;
-                }
+                    AddHint(holder, msg, at, false, last);
+            }
+
+            AddSceneContextualHints(holder);
+        }
+
+        /// <summary>
+        /// Places contextual hints next to the ACTUAL instantiated mechanics
+        /// in the current scene (used for the legacy levels whose original
+        /// instruction text is stripped). Always-show, one per mechanic type.
+        /// </summary>
+        static void AddSceneContextualHints(GameObject holder)
+        {
+            var p1Powerup = Object.FindObjectOfType<PowerUpOne>();
+            if (p1Powerup != null)
+                AddHint(holder, "Red orb: the ember hero can now\ntap B to shoot fireballs!",
+                    p1Powerup.transform.position + new Vector3(0, 2, 0), true, false);
+            var p2Powerup = Object.FindObjectOfType<PowerUpTwo>();
+            if (p2Powerup != null)
+                AddHint(holder, "Blue orb: the wisp hero can tap B to\nbecome a platform to boost a partner",
+                    p2Powerup.transform.position + new Vector3(0, 2, 0), true, false);
+            var lever = Object.FindObjectOfType<IndieMarc.Platformer.Lever>();
+            if (lever != null)
+                AddHint(holder, "Touch a lever to extend its bridge",
+                    lever.transform.position + new Vector3(0, 2, 0), true, false);
+            foreach (GameObject lava in GameObject.FindGameObjectsWithTag("LavaSquare"))
+            {
+                AddHint(holder, "Lava is instant death —\ntime your jumps",
+                    lava.transform.position + new Vector3(0, 2.5f, 0), true, false);
+                break;
             }
         }
 
@@ -315,8 +334,8 @@ namespace Escape.EditorAutomation
 
             Place(Player1Prefab, World(def.player1Spawn), holder, "Player1", asPrefab: true, reuseExisting: true);
             Place(Player2Prefab, World(def.player2Spawn), holder, "Player2", asPrefab: true, reuseExisting: true);
-            Place(ExitPrefab, World(def.exit1), holder, "ExitPortal1", asPrefab: true);
-            Place(ExitPrefab, World(def.exit2), holder, "ExitPortal2", asPrefab: true);
+            NormalizeSpriteHeight(Place(ExitPrefab, World(def.exit1), holder, "ExitPortal1", asPrefab: true), 2.0f, resizeCollider: false);
+            NormalizeSpriteHeight(Place(ExitPrefab, World(def.exit2), holder, "ExitPortal2", asPrefab: true), 2.0f, resizeCollider: false);
 
             foreach (var e in def.enemies)
                 PlaceEnemy(e, holder);
@@ -343,53 +362,29 @@ namespace Escape.EditorAutomation
             }
 
             foreach (Vector2Int p in def.powerUpOne)
-                Place(PowerUp1Prefab, World(p), holder, "PowerUpOne", asPrefab: true);
+                NormalizeSpriteHeight(Place(PowerUp1Prefab, World(p), holder, "PowerUpOne", asPrefab: true), 1.0f);
             foreach (Vector2Int p in def.powerUpTwo)
-                Place(PowerUp2Prefab, World(p), holder, "PowerUpTwo", asPrefab: true);
+                NormalizeSpriteHeight(Place(PowerUp2Prefab, World(p), holder, "PowerUpTwo", asPrefab: true), 1.0f);
 
             Sprite heart = FindGrottoSprite("heart");
             foreach (Vector2Int p in def.hearts)
-                SpriteEntity<HeartPickup>(holder, "Heart", World(p), heart);
+                SpriteEntity<HeartPickup>(holder, "Heart", World(p), heart, 0.8f);
 
             Sprite crystal = FindGrottoSprite("crystal-01");
             foreach (Vector2Int p in def.crystals)
-                SpriteEntity<Crystal>(holder, "Crystal", World(p), crystal);
+                SpriteEntity<Crystal>(holder, "Crystal", World(p), crystal, 0.9f);
 
             Sprite torchUnlit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_unlit_0");
             Sprite torchLit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0");
             foreach (Vector2Int p in def.checkpoints)
             {
-                GameObject cp = SpriteEntity<Checkpoint>(holder, "Checkpoint", World(p), torchUnlit);
+                GameObject cp = SpriteEntity<Checkpoint>(holder, "Checkpoint", World(p), torchUnlit, 1.6f);
                 var comp = cp.GetComponent<Checkpoint>();
                 comp.unlitSprite = torchUnlit;
                 comp.litSprite = torchLit;
             }
 
-            // First-launch tutorial chain (L1 only; SaveSystem-gated at runtime).
-            if (def.levelNumber == 1)
-            {
-                (string msg, Vector2Int at, bool last)[] hints =
-                {
-                    ("Hold ◀ ▶ to move, tap A to jump\n(tap A again mid-air!)",
-                     def.player1Spawn + new Vector2Int(2, 0), false),
-                    ("Tap ⇄ (or your partner's portrait)\nto control the other hero",
-                     def.player1Spawn + new Vector2Int(8, 0), false),
-                    ("BOTH heroes must reach\na portal to escape!",
-                     def.exit1 + new Vector2Int(-6, 0), true),
-                };
-                foreach (var (msg, at, last) in hints)
-                {
-                    GameObject hint = new GameObject(GenPrefix + "Hint");
-                    hint.transform.SetParent(holder.transform, false);
-                    hint.transform.position = World(at);
-                    var box = hint.AddComponent<BoxCollider2D>();
-                    box.isTrigger = true;
-                    box.size = new Vector2(3f, 4f);
-                    var tut = hint.AddComponent<TutorialHint>();
-                    tut.message = msg;
-                    tut.marksTutorialSeen = last;
-                }
-            }
+            BuildHints(def, holder);
 
             Sprite bridgeArt = FirstSprite("Assets/Art/Generated/Props/bridge.png", "bridge_extend_2");
             foreach (var mp in def.movingPlatforms)
@@ -438,6 +433,108 @@ namespace Escape.EditorAutomation
             }
         }
 
+        /// <summary>
+        /// L1 gets the gated first-launch onboarding chain; every level gets
+        /// contextual "always show" bubbles next to its mechanics so the
+        /// player is never surprised by a new hazard.
+        /// </summary>
+        static void BuildHints(LevelDefinition def, GameObject holder)
+        {
+            if (def.levelNumber == 1)
+            {
+                AddHint(holder, "Hold ◀ ▶ to move, tap A to jump\n(tap A again mid-air!)",
+                    World(def.player1Spawn) + new Vector3(2, 0, 0), false, false);
+                AddHint(holder, "Tap ⇄ (or your partner's portrait)\nto control the other hero",
+                    World(def.player1Spawn) + new Vector3(8, 0, 0), false, false);
+                AddHint(holder, "BOTH heroes must reach\na portal to escape!",
+                    World(def.exit1) + new Vector3(-6, 0, 0), false, true);
+            }
+
+            // Contextual hints (always shown) placed at each mechanic's first
+            // instance. Kept short so they read on a phone.
+            if (def.powerUpOne.Length > 0)
+                AddHint(holder, "Red orb: the ember hero can now\ntap B to shoot fireballs!",
+                    World(def.powerUpOne[0]) + new Vector3(0, 2, 0), true, false);
+            if (def.powerUpTwo.Length > 0)
+                AddHint(holder, "Blue orb: the wisp hero can tap B to\nbecome a platform to boost a partner",
+                    World(def.powerUpTwo[0]) + new Vector3(0, 2, 0), true, false);
+            if (def.leverGroups.Length > 0)
+                AddHint(holder, "Touch a lever to extend its bridge",
+                    World(def.leverGroups[0].lever) + new Vector3(0, 2, 0), true, false);
+            foreach (var e in def.enemies)
+            {
+                if (e.type == LevelDefinition.EnemyType.Skeleton)
+                { AddHint(holder, "Skeletons hit hard —\nshoot them or slip past", World(e.position) + new Vector3(-3, 2, 0), true, false); break; }
+            }
+            foreach (var e in def.enemies)
+            {
+                if (e.type == LevelDefinition.EnemyType.Eye)
+                { AddHint(holder, "Eyes chase the active hero.\nSwap to split their attention", World(e.position) + new Vector3(-3, 2, 0), true, false); break; }
+            }
+            if (def.movingPlatforms.Length > 0)
+            {
+                var mp = def.movingPlatforms[0];
+                AddHint(holder, mp.isLavaRiserRide
+                        ? "Ride up together — the lava rises!\nHit levers on time to stay ahead"
+                        : "Ride the moving platform across",
+                    World(mp.from) + new Vector3(0, 2, 0), true, false);
+            }
+            // Lava warning at the first lava run.
+            for (int y = 0; y < def.GridHeight; y++)
+                for (int x = 0; x < def.GridWidth; x++)
+                    if (def.TileAt(x, y) == 'L')
+                    {
+                        AddHint(holder, "Lava is instant death —\ntime your jumps",
+                            new Vector3(x + 0.5f, y + 2.5f, 0), true, false);
+                        return;
+                    }
+        }
+
+        static void AddHint(GameObject holder, string msg, Vector3 pos, bool always, bool marksSeen)
+        {
+            GameObject hint = new GameObject(GenPrefix + "Hint");
+            hint.transform.SetParent(holder.transform, false);
+            hint.transform.position = pos;
+            var box = hint.AddComponent<BoxCollider2D>();
+            box.isTrigger = true;
+            box.size = new Vector2(3f, 4f);
+            var tut = hint.AddComponent<TutorialHint>();
+            tut.message = msg;
+            tut.alwaysShow = always;
+            tut.marksTutorialSeen = marksSeen;
+        }
+
+        /// <summary>
+        /// Rescales an object so its sprite renders at targetHeight world
+        /// units, and resizes its BoxCollider2D to roughly match the body.
+        /// </summary>
+        static void NormalizeSpriteHeight(GameObject go, float targetHeight, bool resizeCollider = true)
+        {
+            if (go == null)
+                return;
+            var sr = go.GetComponent<SpriteRenderer>();
+            if (sr == null || sr.sprite == null)
+                return;
+            float spriteH = sr.sprite.bounds.size.y;   // world units at scale 1
+            if (spriteH < 0.001f)
+                return;
+            float scale = targetHeight / spriteH;
+            go.transform.localScale = new Vector3(scale, scale, 1f);
+
+            // Collider is in local units; a ~0.7x0.8 box on the normalized
+            // body keeps hitboxes fair and consistent.
+            if (resizeCollider)
+            {
+                var box = go.GetComponent<BoxCollider2D>();
+                if (box != null)
+                {
+                    Vector2 local = sr.sprite.bounds.size;
+                    box.size = new Vector2(local.x * 0.7f, local.y * 0.8f);
+                    box.offset = Vector2.zero;
+                }
+            }
+        }
+
         static void PlaceEnemy(LevelDefinition.EnemyPlacement e, GameObject holder)
         {
             if (!EnemyPrefabs.TryGetValue(e.type, out string path))
@@ -445,6 +542,11 @@ namespace Escape.EditorAutomation
             GameObject enemy = Place(path, World(e.position), holder, GenPrefix + e.type, asPrefab: true);
             if (enemy == null)
                 return;
+
+            // The pack prefabs carry wildly inconsistent scales (Slime x50 =
+            // giant, Eye/Frog x1 = invisible). Normalize every enemy to a
+            // uniform ~1.2-unit height regardless of prefab scale/PPU.
+            NormalizeSpriteHeight(enemy, e.type == LevelDefinition.EnemyType.Slime ? 1.1f : 1.25f);
 
             switch (e.type)
             {
@@ -500,7 +602,8 @@ namespace Escape.EditorAutomation
                 enemy.AddComponent<T>();
         }
 
-        static GameObject SpriteEntity<T>(GameObject holder, string name, Vector3 pos, Sprite sprite)
+        static GameObject SpriteEntity<T>(GameObject holder, string name, Vector3 pos, Sprite sprite,
+                                          float targetHeight = 1.0f)
             where T : Component
         {
             GameObject obj = new GameObject(GenPrefix + name);
@@ -508,7 +611,18 @@ namespace Escape.EditorAutomation
             obj.transform.position = pos;
             var renderer = obj.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
-            obj.AddComponent<BoxCollider2D>().isTrigger = true;
+            renderer.sortingOrder = 2;
+            // Grotto item sprites are 16px @100 PPU (0.16 world units) — scale
+            // them up so pickups read at ~1 tile like everything else.
+            if (sprite != null && sprite.bounds.size.y > 0.001f)
+            {
+                float scale = targetHeight / sprite.bounds.size.y;
+                obj.transform.localScale = new Vector3(scale, scale, 1f);
+            }
+            var box = obj.AddComponent<BoxCollider2D>();
+            box.isTrigger = true;
+            if (sprite != null)
+                box.size = sprite.bounds.size;
             obj.AddComponent<T>();
             return obj;
         }
@@ -639,30 +753,38 @@ namespace Escape.EditorAutomation
 
         static void BuildParallax(LevelDefinition def)
         {
+            // One SEAMLESS tiled layer per depth, each sized to cover the
+            // whole level plus margin. The old approach placed discrete
+            // background tiles at a fixed height — they showed as a "floating
+            // map strip" that scrolled. A single tiled renderer has no seams
+            // and no floating band.
             string zone = def.zone == LevelDefinition.Zone.Depths ? "depths" : "grotto";
             GameObject holder = new GameObject(GenPrefix + "Parallax");
             (string layer, float factor, float z)[] layers =
             {
-                ("far", 0.9f, 40f), ("mid", 0.65f, 30f), ("near", 0.4f, 20f),
+                ("far", 0.92f, 40f), ("near", 0.75f, 25f),
             };
+            float coverW = def.GridWidth + 60f;
+            float coverH = def.GridHeight + 40f;
+            Vector3 center = new Vector3(def.GridWidth / 2f, def.GridHeight / 2f, 0f);
+
             foreach (var (layer, factor, z) in layers)
             {
                 Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(
                     $"Assets/Art/Generated/Backgrounds/{zone}_{layer}.png");
                 if (sprite == null)
                     continue;
-                float w = sprite.bounds.size.x;
-                for (int i = -1; i <= Mathf.CeilToInt(def.GridWidth / w) + 1; i++)
-                {
-                    var obj = new GameObject($"{layer}_{i}");
-                    obj.transform.SetParent(holder.transform, false);
-                    obj.transform.position = new Vector3(i * w, def.GridHeight * 0.35f, z);
-                    var renderer = obj.AddComponent<SpriteRenderer>();
-                    renderer.sprite = sprite;
-                    renderer.sortingOrder = -10 - (int)z;
-                    var parallax = obj.AddComponent<ParallaxLayer>();
-                    parallax.factor = factor;
-                }
+                var obj = new GameObject(GenPrefix + "BG_" + layer);
+                obj.transform.SetParent(holder.transform, false);
+                obj.transform.position = new Vector3(center.x, center.y, z);
+                var renderer = obj.AddComponent<SpriteRenderer>();
+                renderer.sprite = sprite;
+                renderer.drawMode = SpriteDrawMode.Tiled;
+                renderer.tileMode = SpriteTileMode.Continuous;
+                renderer.size = new Vector2(coverW, coverH);
+                renderer.sortingOrder = -20 - (int)z;
+                var parallax = obj.AddComponent<ParallaxLayer>();
+                parallax.factor = factor;
             }
         }
 

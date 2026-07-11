@@ -29,6 +29,16 @@ namespace Escape.EditorAutomation
             importer.spriteImportMode = hasManifest && !isIcon && !isBackground
                 ? SpriteImportMode.Multiple
                 : SpriteImportMode.Single;
+
+            if (isBackground)
+            {
+                // Seamless SpriteDrawMode.Tiled needs Full Rect mesh + Repeat wrap.
+                importer.wrapMode = TextureWrapMode.Repeat;
+                var settings = new TextureImporterSettings();
+                importer.ReadTextureSettings(settings);
+                settings.spriteMeshType = SpriteMeshType.FullRect;
+                importer.SetTextureSettings(settings);
+            }
         }
     }
 }

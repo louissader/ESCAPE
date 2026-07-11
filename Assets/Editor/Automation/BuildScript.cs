@@ -71,6 +71,26 @@ namespace Escape.EditorAutomation
             Report(BuildPipeline.BuildPlayer(options), "iOS Xcode project");
         }
 
+        /// <summary>Local playable build — keyboard co-op, touch UI hidden.</summary>
+        public static void BuildMac()
+        {
+            // Legacy project setting had OpenGLCore; Apple silicon needs Metal.
+            PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneOSX, false);
+            PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneOSX, new[]
+            {
+                UnityEngine.Rendering.GraphicsDeviceType.Metal,
+            });
+
+            var options = new BuildPlayerOptions
+            {
+                scenes = ScenePaths(),
+                locationPathName = "Builds/Mac/ESCAPE.app",
+                target = BuildTarget.StandaloneOSX,
+                options = BuildOptions.None,
+            };
+            Report(BuildPipeline.BuildPlayer(options), "Mac app");
+        }
+
         static void Report(BuildReport report, string label)
         {
             var summary = report.summary;

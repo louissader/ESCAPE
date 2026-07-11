@@ -25,8 +25,7 @@ namespace Escape.EditorAutomation
                 "hero2_wisp",
                 "Assets/Art/Generated/Animations/Hero2/Hero2.controller");
 
-            SwapSprite("Assets/GrottoEscapeArtwork/Prefabs/Bridge.prefab",
-                FirstSprite("Assets/Art/Generated/Props/bridge.png", "bridge_extend_2"), keepWorldSize: true);
+            OverhaulBridge();
             SwapSprite("Assets/GrottoEscapeArtwork/Prefabs/LavaSquare.prefab",
                 FirstSprite("Assets/Art/Generated/Props/lava.png", "lava_glow_0"), keepWorldSize: true);
             SwapSprite("Assets/GrottoEscapeArtwork/Prefabs/Rectangle.prefab",
@@ -88,6 +87,50 @@ namespace Escape.EditorAutomation
                           $"{afterColliderWorld} (drift {drift:P2}) sprite={idle.name}");
                 if (drift > 0.01f)
                     Debug.LogError($"[PrefabVisualOverhaul] {prefabPath} collider drift exceeds 1%!");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        static void OverhaulBridge()
+        {
+            const string path = "Assets/GrottoEscapeArtwork/Prefabs/Misc/Bridge.prefab";
+            const string sheet = "Assets/Art/Generated/Props/bridge.png";
+            var frames = AssetDatabase.LoadAllAssetsAtPath(sheet).OfType<Sprite>()
+                .Where(s => s.name.Contains("extend"))
+                .OrderBy(s => s.name)
+                .ToArray();
+            if (frames.Length == 0)
+            {
+                Debug.LogWarning("[PrefabVisualOverhaul] bridge frames missing — skipped");
+                return;
+            }
+
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var renderer = root.GetComponent<SpriteRenderer>();
+                Vector2 worldSize = renderer.bounds.size;
+                renderer.sprite = frames[frames.Length - 1];
+                renderer.color = Color.white;
+                if (worldSize.sqrMagnitude > 0.001f)
+                    FitScaleToWorldSize(root.transform, renderer, worldSize);
+
+                var bridge = root.GetComponent<IndieMarc.Platformer.Bridge>();
+                if (bridge != null)
+                {
+                    var so = new SerializedObject(bridge);
+                    var arr = so.FindProperty("extendFrames");
+                    arr.arraySize = frames.Length;
+                    for (int i = 0; i < frames.Length; i++)
+                        arr.GetArrayElementAtIndex(i).objectReferenceValue = frames[i];
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                }
+
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+                Debug.Log($"[PrefabVisualOverhaul] bridge animated ({frames.Length} frames)");
             }
             finally
             {

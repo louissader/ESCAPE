@@ -123,7 +123,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: bridge_bridge_0
+      name: bridge_extend_0
       rect:
         serializedVersion: 2
         x: 0
@@ -137,14 +137,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: d44b71fc83faad512bb22a9643f83e58
-      internalID: -715307561
+      spriteID: 7ff3f13ddb294aca1c70404fc81ca541
+      internalID: -469637633
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: bridge_bridge_1
+      name: bridge_extend_1
       rect:
         serializedVersion: 2
         x: 16
@@ -158,14 +158,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 29b560f95d0baaa807a4f9201dcb70eb
-      internalID: 531543606
+      spriteID: 0a0879df3a5202b0829c32188a78d6d5
+      internalID: 337348587
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: bridge_bridge_2
+      name: bridge_extend_2
       rect:
         serializedVersion: 2
         x: 32
@@ -179,8 +179,71 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: dc458c73d14fe94b5d8f74442a864ad0
-      internalID: -1634016801
+      spriteID: 78721ab53081679aada1756aabd9b1a7
+      internalID: 1957315712
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bridge_extend_3
+      rect:
+        serializedVersion: 2
+        x: 48
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 19cf11c8c24f491bb0b34aae4aa9ff66
+      internalID: -197500262
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bridge_extend_4
+      rect:
+        serializedVersion: 2
+        x: 64
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d71f9c5776678677386485134285295c
+      internalID: -1386202811
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: bridge_extend_5
+      rect:
+        serializedVersion: 2
+        x: 80
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ed5ba18d101457497d6b063d065f5518
+      internalID: 312453436
       vertices: []
       indices: 
       edges: []
@@ -196,9 +259,12 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     nameFileIdTable:
-      bridge_bridge_0: -715307561
-      bridge_bridge_1: 531543606
-      bridge_bridge_2: -1634016801
+      bridge_extend_0: -469637633
+      bridge_extend_1: 337348587
+      bridge_extend_2: 1957315712
+      bridge_extend_3: -197500262
+      bridge_extend_4: -1386202811
+      bridge_extend_5: 312453436
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
