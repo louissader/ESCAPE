@@ -46,13 +46,20 @@ public class SmokeTests
         yield return LoadLevel(1);
         PlayerCharacterOne p1 = PlayerCharacterOne.Get(1);
         Assert.IsNotNull(p1);
+
+        // The on-screen controls write the channels every frame (no touch =
+        // move 0) — disable them so the test owns the channel.
+        GameObject touchControls = GameObject.Find("TouchControls");
+        if (touchControls != null)
+            touchControls.SetActive(false);
+
         VirtualInputRouter.ResetForLevel();
         float startX = p1.transform.position.x;
 
-        VirtualInputRouter.Get(1).move = 1f;
         float t = 0f;
-        while (t < 1f)
+        while (t < 1.5f)
         {
+            VirtualInputRouter.Get(1).move = 1f;
             t += Time.deltaTime;
             yield return null;
         }
