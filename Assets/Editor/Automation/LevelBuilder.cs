@@ -128,8 +128,21 @@ namespace Escape.EditorAutomation
         /// </summary>
         static void AugmentLegacyLevel(LevelDefinition def)
         {
+            // The legacy scenes carry TWO tilemaps: a completely-full
+            // background layer (tiles == bounds area — no clear cells at
+            // all) and the real platform layer with the TilemapCollider2D.
+            // Only the collider layer represents standable geometry.
             var tilemap = Object.FindObjectsOfType<Tilemap>()
-                .OrderByDescending(t => { t.CompressBounds(); return t.cellBounds.size.x * t.cellBounds.size.y; })
+                .OrderByDescending(t => t.GetComponent<TilemapCollider2D>() != null ? 1 : 0)
+                .ThenByDescending(t =>
+                {
+                    t.CompressBounds();
+                    int count = 0;
+                    foreach (Vector3Int pos in t.cellBounds.allPositionsWithin)
+                        if (t.HasTile(pos))
+                            count++;
+                    return count;
+                })
                 .FirstOrDefault();
             Vector2Int offset = Vector2Int.zero;
             if (tilemap != null)
@@ -172,8 +185,28 @@ namespace Escape.EditorAutomation
             foreach (Vector2Int p in def.hearts)
                 SpriteEntity<HeartPickup>(holder, "Heart", LegacyWorld(p), heart, 0.8f);
             Sprite starSpriteL = FirstSprite("Assets/Art/Generated/Props/star.png", "star_twinkle_0");
-            if (def.crystals.Length > 0)
-                AddCoinSpin(SpriteEntity<Crystal>(holder, "Star", LegacyWorld(def.crystals[0]), starSpriteL, 1.1f));
+            // The extractor's standable-scan silently produced empty arrays
+            // for the legacy levels (their star/heart spots were never
+            // authored) — derive positions from the LIVE tilemap instead so
+            // every level is guaranteed a collectible star on real ground.
+            Vector3? starSpot = def.crystals.Length > 0
+                ? LegacyWorld(def.crystals[0])
+                : FindStandableWorld(tilemap, 0.55f);
+            if (starSpot.HasValue)
+                AddCoinSpin(SpriteEntity<Crystal>(holder, "Star", starSpot.Value, starSpriteL, 1.1f));
+            else
+                Debug.LogError($"[LevelBuilder] L{def.levelNumber}: no star spot found!");
+
+            if (def.hearts.Length == 0 && tilemap != null)
+            {
+                Sprite heartFallback = FindGrottoSprite("heart");
+                foreach (float fx in new[] { 0.3f, 0.75f })
+                {
+                    Vector3? spot = FindStandableWorld(tilemap, fx);
+                    if (spot.HasValue)
+                        SpriteEntity<HeartPickup>(holder, "Heart", spot.Value, heartFallback, 0.8f);
+                }
+            }
             Sprite torchUnlit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_unlit_0");
             Sprite torchLit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0");
             foreach (Vector2Int p in def.checkpoints)
@@ -511,6 +544,39 @@ namespace Escape.EditorAutomation
             tut.message = msg;
             tut.alwaysShow = always;
             tut.marksTutorialSeen = marksSeen;
+        }
+
+        /// <summary>
+        /// Standable spot from live tilemap geometry: the first cell (searching
+        /// down from 60% height at the given width fraction, then nearby
+        /// columns) whose cell below has a tile and which is itself clear,
+        /// returned as a world position 1.5 tiles above the ground surface.
+        /// </summary>
+        static Vector3? FindStandableWorld(Tilemap tilemap, float fractionX)
+        {
+            if (tilemap == null)
+                return null;
+            tilemap.CompressBounds();
+            BoundsInt b = tilemap.cellBounds;
+            int targetX = b.xMin + Mathf.RoundToInt(b.size.x * fractionX);
+            for (int dx = 0; dx < b.size.x / 2; dx++)
+            {
+                foreach (int x in new[] { targetX + dx, targetX - dx })
+                {
+                    if (x <= b.xMin || x >= b.xMax - 1)
+                        continue;
+                    for (int y = b.yMax - 2; y > b.yMin; y--)
+                    {
+                        bool groundBelow = tilemap.HasTile(new Vector3Int(x, y - 1, 0));
+                        bool clearHere = !tilemap.HasTile(new Vector3Int(x, y, 0)) &&
+                                         !tilemap.HasTile(new Vector3Int(x, y + 1, 0));
+                        if (groundBelow && clearHere)
+                            return tilemap.layoutGrid.CellToWorld(new Vector3Int(x, y, 0)) +
+                                   new Vector3(0.5f, 1.0f, 0f);
+                    }
+                }
+            }
+            return null;
         }
 
         /// <summary>
