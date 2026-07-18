@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 3362657017258313695}
   - component: {fileID: 7354728704362781431}
   - component: {fileID: -5908868986540028139}
+  - component: {fileID: 2393341893427827959}
   m_Layer: 31
   m_Name: LavaSquare
   m_TagString: LavaSquare
@@ -76,9 +77,8 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6,
-    type: 3}
-  m_Color: {r: 1, g: 0.5351871, b: 0, a: 1}
+  m_Sprite: {fileID: -1968454833, guid: 26cadbdd0f29149fea889e3dd2050c04, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -172,3 +172,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c7ee618e3c82d499095a62041cd6be4a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &2393341893427827959
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6193437766700203918}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df5d0f9240c144df0849043b3b59617d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  frames:
+  - {fileID: -1968454833, guid: 26cadbdd0f29149fea889e3dd2050c04, type: 3}
+  - {fileID: -466744661, guid: 26cadbdd0f29149fea889e3dd2050c04, type: 3}
+  - {fileID: -1900188148, guid: 26cadbdd0f29149fea889e3dd2050c04, type: 3}
+  - {fileID: 1381272592, guid: 26cadbdd0f29149fea889e3dd2050c04, type: 3}
+  - {fileID: 1898065205, guid: 26cadbdd0f29149fea889e3dd2050c04, type: 3}
+  - {fileID: 2036696546, guid: 26cadbdd0f29149fea889e3dd2050c04, type: 3}
+  fps: 6

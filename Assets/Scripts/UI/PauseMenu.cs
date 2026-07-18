@@ -26,7 +26,10 @@ public class PauseMenu : MonoBehaviour
     void Update()
     {
         // Android back button maps to Escape in the legacy input manager.
-        if (Input.GetKeyDown(KeyCode.Escape))
+        // The how-to-play card owns Escape while showing (and for the press
+        // that closed it — Update order between the two is arbitrary).
+        if (Input.GetKeyDown(KeyCode.Escape) &&
+            !HowToPlayPanel.IsOpen && !HowToPlayPanel.ClosedThisFrame)
             Toggle();
     }
 

@@ -21,6 +21,7 @@ namespace Escape.EditorAutomation
             FixPlayerPhysics();
             RecolorPowerups();
             StripLegacyUI();
+            EaseLevelOne();
             AssetDatabase.SaveAssets();
             Debug.Log("[PlaytestFixes] all applied");
         }
@@ -125,12 +126,17 @@ namespace Escape.EditorAutomation
                 {
                     sr.sprite = sprite;
                     sr.color = Color.white;
-                    // 1.4 tiles: at 1 tile the orbs read too small next to
-                    // the 1.5-tall heroes (playtest feedback).
-                    root.transform.localScale = Vector3.one * 1.4f;
+                    // 1.8 tiles (playtest 5: 1.4 still read small). Derived
+                    // from the sprite bounds, NOT a fixed multiplier — the
+                    // orbs were regenerated at 32px, so a hardcoded scale
+                    // would have doubled their world size.
+                    const float targetHeight = 1.8f;
+                    float spriteHeight = sprite.bounds.size.y;
+                    root.transform.localScale = Vector3.one *
+                        (spriteHeight > 0.001f ? targetHeight / spriteHeight : 1f);
 
                     // Animate the pulse — all 4 frames were generated but
-                    // only frame 0 was ever shown.
+                    // only frame 0 was ever shown. 5 fps: calmer throb.
                     var frames = AssetDatabase.LoadAllAssetsAtPath(sheet)
                         .OfType<Sprite>().OrderBy(f => f.name).ToArray();
                     if (frames.Length > 1)
@@ -139,17 +145,100 @@ namespace Escape.EditorAutomation
                         if (cycler == null)
                             cycler = sr.gameObject.AddComponent<SpriteCycler>();
                         cycler.frames = frames;
-                        cycler.fps = 6f;
+                        cycler.fps = 5f;
                     }
 
                     PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
-                    Debug.Log($"[PlaytestFixes] powerup orb (1.4x, pulsing) → {prefabPath}");
+                    Debug.Log($"[PlaytestFixes] powerup orb ({targetHeight} tiles, pulsing) → {prefabPath}");
                 }
             }
             finally
             {
                 PrefabUtility.UnloadPrefabContents(root);
             }
+        }
+
+        /// <summary>
+        /// Playtest 5: Level 1 filtered too many new players. One extra
+        /// checkpoint ~midway, one extra heart ~2/3 through, and every
+        /// enemy's patrol/chase speed at 0.7x. Additions live under a GEN_
+        /// holder (rebuilt here, cleared by LevelBuilder's GEN_ sweep — so
+        /// this must run AFTER BuildAllLevels in any pipeline); the speed
+        /// scale only applies while a value still matches its prefab default,
+        /// so re-runs can never compound it.
+        /// </summary>
+        [MenuItem("Escape/Playtest Fixes/Ease Level One")]
+        public static void EaseLevelOne()
+        {
+            const string holderName = "GEN_EaseL1";
+            var scene = EditorSceneManager.OpenScene("Assets/Scenes/Level 1.unity", OpenSceneMode.Single);
+
+            GameObject old = GameObject.Find(holderName);
+            if (old != null)
+                Object.DestroyImmediate(old);
+            GameObject holder = new GameObject(holderName);
+
+            var tilemap = LevelBuilder.FindColliderTilemap();
+
+            // Extra checkpoint ~midway, skipping spots that crowd an
+            // existing torch (the augment pass already placed one mid-level).
+            var checkpoints = Object.FindObjectsOfType<Checkpoint>();
+            Vector3? cpSpot = null;
+            foreach (float fx in new[] { 0.5f, 0.42f, 0.58f, 0.35f })
+            {
+                Vector3? candidate = LevelBuilder.FindStandableWorld(tilemap, fx);
+                if (candidate.HasValue &&
+                    !checkpoints.Any(c => Vector3.Distance(c.transform.position, candidate.Value) < 4f))
+                {
+                    cpSpot = candidate;
+                    break;
+                }
+            }
+            if (cpSpot.HasValue)
+                LevelBuilder.AddCheckpoint(holder, cpSpot.Value);
+            else
+                Debug.LogWarning("[PlaytestFixes] L1: no clear midway checkpoint spot found");
+
+            Vector3? heartSpot = LevelBuilder.FindStandableWorld(tilemap, 0.67f);
+            if (heartSpot.HasValue)
+                LevelBuilder.AddHeart(holder, heartSpot.Value);
+            else
+                Debug.LogWarning("[PlaytestFixes] L1: no standable heart spot at 2/3");
+
+            int slowed = 0;
+            foreach (var bat in Object.FindObjectsOfType<IndieMarc.Platformer.Bat>())
+                slowed += SlowEnemyOnce(bat, b => b.moveSpeed, (b, v) => b.moveSpeed = v);
+            foreach (var ghost in Object.FindObjectsOfType<IndieMarc.Platformer.Ghost>())
+                slowed += SlowEnemyOnce(ghost, g => g.moveSpeed, (g, v) => g.moveSpeed = v);
+            foreach (var patrol in Object.FindObjectsOfType<GroundPatrol>())
+                slowed += SlowEnemyOnce(patrol, p => p.speed, (p, v) => p.speed = v);
+            foreach (var eye in Object.FindObjectsOfType<EyeEnemy>())
+                slowed += SlowEnemyOnce(eye, e => e.speed, (e, v) => e.speed = v);
+
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log($"[PlaytestFixes] L1 eased: checkpoint={cpSpot.HasValue} " +
+                      $"heart={heartSpot.HasValue} enemies slowed x0.7: {slowed}");
+        }
+
+        /// <summary>
+        /// 0.7x an enemy speed field exactly once: only while the current
+        /// value still matches the prefab default (±5%). Already-slowed or
+        /// hand-tuned values are left alone; non-prefab components have no
+        /// baseline to compare against, so they are skipped.
+        /// </summary>
+        static int SlowEnemyOnce<T>(T component, System.Func<T, float> get, System.Action<T, float> set)
+            where T : Component
+        {
+            T source = PrefabUtility.GetCorrespondingObjectFromSource(component);
+            if (source == null)
+                return 0;
+            float baseline = get(source);
+            float current = get(component);
+            if (baseline < 0.001f || Mathf.Abs(current - baseline) > baseline * 0.05f)
+                return 0;
+            set(component, current * 0.7f);
+            EditorUtility.SetDirty(component);
+            return 1;
         }
 
         /// <summary>

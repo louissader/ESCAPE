@@ -28,6 +28,12 @@ namespace Escape.EditorAutomation
             failed += Step("CreateLevelDefinitions", LevelLibrary.CreateAll);
             failed += Step("BuildAllLevels", LevelBuilder.BuildAllLevels);
             failed += Step("RebuildLevelSelect", LevelMenuBuilder.Run);
+            // After BuildGameplayUIPrefab (which rebuilds that prefab from
+            // scratch) and after BuildAllLevels (whose GEN_ sweep clears the
+            // Level-1 easing objects).
+            failed += Step("BuildIntroCutscene", IntroCutsceneBuilder.Run);
+            failed += Step("BuildHowToPlayPanels", HowToPlayBuilder.Run);
+            failed += Step("EaseLevelOne", PlaytestFixes.EaseLevelOne);
 
             AssetDatabase.SaveAssets();
             Debug.Log($"[MasterPipeline] COMPLETE — {failed} step(s) failed" +
@@ -40,14 +46,24 @@ namespace Escape.EditorAutomation
         public static void RunPlaytestFixes()
         {
             int failed = 0;
+            // Sprites first (doors, 6-frame lava, 32px orbs, cutscene plates).
             failed += Step("SliceGeneratedSprites", SliceGeneratedSprites.Run);
             failed += Step("PlayerPhysics+Speed", PlaytestFixes.FixPlayerPhysics);
             failed += Step("RecolorPowerups", PlaytestFixes.RecolorPowerups);
             failed += Step("PrefabVisualOverhaul", PrefabVisualOverhaul.Run);
             failed += Step("BuildGameplayUIPrefab", HUDBuilder.BuildGameplayUIPrefab);
             failed += Step("BuildTouchControlsPrefab", TouchControlsBuilder.BuildTouchControlsPrefab);
+            // Intro scene + STORY button; the how-to-play pass must follow
+            // BuildGameplayUIPrefab — that step rebuilds the prefab from
+            // scratch and would drop the panel.
+            failed += Step("BuildIntroCutscene", IntroCutsceneBuilder.Run);
+            failed += Step("BuildHowToPlayPanels", HowToPlayBuilder.Run);
+            // Doors + animated lava wire up inside BuildAllLevels (generated
+            // + legacy augment paths), followed by the solvability gate.
             failed += Step("BuildAllLevels", LevelBuilder.BuildAllLevels);
             failed += Step("StripLegacyUI", PlaytestFixes.StripLegacyUI);
+            // After BuildAllLevels: its GEN_ sweep clears the easing objects.
+            failed += Step("EaseLevelOne", PlaytestFixes.EaseLevelOne);
             failed += Step("RebuildLevelSelect", LevelMenuBuilder.Run);
             failed += Step("FixNullMaterials", FixNullMaterials.Run);
 

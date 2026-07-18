@@ -79,4 +79,23 @@ public class SaveSystemTests
         SaveSystem.RecordStars(1, 3);
         Assert.AreEqual(3, SaveSystem.StarsForLevel(1));
     }
+
+    [Test]
+    public void IntroSeen_RoundTrips()
+    {
+        Assert.IsFalse(SaveSystem.IntroSeen, "fresh state starts with the intro unseen");
+        SaveSystem.IntroSeen = true;
+        Assert.IsTrue(SaveSystem.IntroSeen);
+        SaveSystem.IntroSeen = false;
+        Assert.IsFalse(SaveSystem.IntroSeen);
+    }
+
+    [Test]
+    public void IntroSeen_ClearedByResetProgress()
+    {
+        SaveSystem.IntroSeen = true;
+        SaveSystem.ResetProgress();
+        Assert.IsFalse(SaveSystem.IntroSeen,
+            "the sanctioned full reset must also replay the intro");
+    }
 }

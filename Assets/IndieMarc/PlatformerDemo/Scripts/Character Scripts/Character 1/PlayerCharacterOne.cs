@@ -109,6 +109,10 @@ namespace IndieMarc.Platformer
             gate = false;
 
             CheckpointManager.RegisterLevelStart(player_id, transform.position);
+
+            // Heroes pass through each other (Playtest 5) — both Starts call
+            // this; whichever runs second finds both players registered.
+            PlayerPassThrough.Apply();
         }
 
         void OnDestroy()
@@ -455,6 +459,12 @@ namespace IndieMarc.Platformer
 
             if (collision.gameObject.CompareTag("Dragon"))
             {
+                // Playtest 5: levels with ExitDoors win via both-heroes-at-
+                // door — ExitDoor owns the win path and this legacy portal
+                // absorption stands down. Kept for scenes the editor pass
+                // hasn't migrated yet.
+                if (ExitDoor.AnyInLevel)
+                    return;
                 onWin?.Invoke();
                 UpdateDragonCount();
                 gameObject.SetActive(false);

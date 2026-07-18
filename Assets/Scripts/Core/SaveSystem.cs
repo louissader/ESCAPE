@@ -15,6 +15,7 @@ public static class SaveSystem
     const string KeyControlMode = "escape.controlMode";
     const string KeyStorySeen = "escape.storySeen";
     const string KeyTutorialSeen = "escape.tutorialSeen";
+    const string KeyIntroSeen = "escape.introSeen";
     const string KeyCompletedPrefix = "escape.completed.";
     const string KeyLastCompleted = "escape.lastCompleted";
 
@@ -131,12 +132,19 @@ public static class SaveSystem
         set { PlayerPrefs.SetInt(KeyTutorialSeen, value ? 1 : 0); PlayerPrefs.Save(); }
     }
 
+    public static bool IntroSeen
+    {
+        get { return PlayerPrefs.GetInt(KeyIntroSeen, 0) == 1; }
+        set { PlayerPrefs.SetInt(KeyIntroSeen, value ? 1 : 0); PlayerPrefs.Save(); }
+    }
+
     /// <summary>The ONLY sanctioned full reset (settings panel, confirm dialog).</summary>
     public static void ResetProgress()
     {
         PlayerPrefs.DeleteKey(KeyHighestUnlocked);
         PlayerPrefs.DeleteKey(KeyStorySeen);
         PlayerPrefs.DeleteKey(KeyTutorialSeen);
+        PlayerPrefs.DeleteKey(KeyIntroSeen);
         PlayerPrefs.DeleteKey(KeyLastCompleted);
         for (int i = 1; i <= SceneRouter.LevelCount; i++)
         {

@@ -206,6 +206,48 @@ TextureImporter:
       indices: 
       edges: []
       weights: []
+    - serializedVersion: 2
+      name: lava_lava_4
+      rect:
+        serializedVersion: 2
+        x: 64
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 897e833cc07f9220c7847a9ed49f690f
+      internalID: 1898065205
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: lava_lava_5
+      rect:
+        serializedVersion: 2
+        x: 80
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 396faa68fafd722e92246162f7c7ec78
+      internalID: 2036696546
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     physicsShape: []
     bones: []
@@ -221,6 +263,8 @@ TextureImporter:
       lava_lava_1: -466744661
       lava_lava_2: -1900188148
       lava_lava_3: 1381272592
+      lava_lava_4: 1898065205
+      lava_lava_5: 2036696546
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

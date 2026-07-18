@@ -7,8 +7,10 @@ namespace Escape.EditorAutomation
     /// Tile-grid reachability: BFS with platformer moves (walk, jump up to
     /// 6 tiles with double jump, horizontal leaps up to 5, falls any depth).
     /// Bridges count as open ground; moving platforms connect endpoints.
-    /// Verifies: spawn→both exits for both characters, every crystal
-    /// reachable, exits reachable from every checkpoint.
+    /// Verifies the two-door win (Playtest 5): BOTH doors must be reachable
+    /// from BOTH spawns (heroes share the movement model, and swap mode can
+    /// pilot either hero to either door), every crystal reachable, and both
+    /// doors reachable from every checkpoint.
     /// </summary>
     public static class LevelSolvability
     {
@@ -47,10 +49,15 @@ namespace Escape.EditorAutomation
             foreach (Vector2Int cp in def.checkpoints)
             {
                 HashSet<Vector2Int> reach = Reachable(def, standable, cp);
-                if (!ReachesNear(reach, def.exit1, 2))
+                // Both doors matter after a respawn — the level only ends
+                // when EMBER holds door 1 while WISP holds door 2.
+                foreach (var exit in new[] { def.exit1, def.exit2 })
                 {
-                    Debug.LogError($"[Solvability] L{def.levelNumber}: exit unreachable from checkpoint {cp}");
-                    ok = false;
+                    if (!ReachesNear(reach, exit, 2))
+                    {
+                        Debug.LogError($"[Solvability] L{def.levelNumber}: exit {exit} unreachable from checkpoint {cp}");
+                        ok = false;
+                    }
                 }
             }
 

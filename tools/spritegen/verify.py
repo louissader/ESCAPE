@@ -28,11 +28,15 @@ else:
 
 EXPECTED = {
     "Characters": ["hero1_ember", "hero2_wisp"],
-    "Props": ["lava", "bridge", "lever", "crystal_slab", "exit_portal", "checkpoint_torch"],
+    "Props": [
+        "lava", "bridge", "lever", "crystal_slab", "exit_portal", "checkpoint_torch",
+        "door_ember", "door_wisp", "star", "star_empty", "powerup_ember", "powerup_wisp",
+    ],
     "UI": ["dpad_left", "dpad_right", "dpad_down", "btn_a", "btn_b", "btn_swap", "btn_pause"],
     "Backgrounds": [
         "grotto_far", "grotto_mid", "grotto_near",
         "depths_far", "depths_mid", "depths_near",
+        "cutscene_entrance", "cutscene_collapse", "cutscene_stars", "cutscene_resolve",
     ],
     "FX": ["dust_puff", "spark", "impact_ring", "death_poof", "death_poof_strip", "lava_bubble"],
     "Icons": ["app_icon_1024", "playstore_512", "adaptive_foreground_432", "adaptive_background_432"],
@@ -41,8 +45,10 @@ EXPECTED = {
 FRAME_COUNTS = {
     "hero1_ember": 18,   # idle2 walk4 jump1 fall1 crouch1 hurt1 death4 win2 shoot2
     "hero2_wisp": 20,    # idle2 walk4 jump1 fall1 crouch1 hurt1 death4 win2 transform4
-    "lava": 4, "bridge": 3, "lever": 4, "crystal_slab": 4,
+    "lava": 6, "bridge": 6, "lever": 4, "crystal_slab": 4,
     "exit_portal": 4, "checkpoint_torch": 6, "death_poof_strip": 4,
+    "door_ember": 7, "door_wisp": 7,   # closed_0 half_0 half_1 open_0..open_3
+    "star": 4, "star_empty": 1, "powerup_ember": 4, "powerup_wisp": 4,
 }
 
 
@@ -100,6 +106,8 @@ def check_hero_palettes():
 def check_backgrounds_tileable():
     ok = True
     for n in EXPECTED["Backgrounds"]:
+        if n.startswith("cutscene_"):
+            continue  # story plates are full-bleed illustrations, not scrolling layers
         img = load_png(os.path.join(OUT_ROOT, "Backgrounds", f"{n}.png")).astype(np.int32)
         cols = img.reshape(img.shape[0], img.shape[1], 4)
         diffs = np.abs(cols[:, 1:] - cols[:, :-1]).mean(axis=(0, 2))

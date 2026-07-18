@@ -1,0 +1,261 @@
+using UnityEditor;
+using UnityEditor.Events;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+namespace Escape.EditorAutomation
+{
+    /// <summary>
+    /// Builds the HOW TO PLAY reference card (HowToPlayPanel) on both the
+    /// main menu canvas and the pause canvas inside GameplayUI.prefab, plus
+    /// the buttons that open it. MUST run after HUDBuilder in any pipeline —
+    /// BuildGameplayUIPrefab rebuilds that prefab from scratch and drops the
+    /// panel. Idempotent: panel/button objects are rebuilt by name.
+    ///
+    /// The key lines print the ACTUAL bindings: PlayerControlsOne hardcodes
+    /// EMBER to the arrow keys (jump = Up) + Space; Player2.prefab serializes
+    /// WISP to A/D + W jump + E action. There is no keyboard swap key — swap
+    /// is the touch button or tapping a portrait (GameHUD.OnPortrait*Tapped).
+    /// </summary>
+    public static class HowToPlayBuilder
+    {
+        const string HudPrefabPath = "Assets/Prefabs/GameplayUI.prefab";
+
+        static readonly Color EmberColor = new Color(0.878f, 0.455f, 0.220f); // #e07438
+        static readonly Color WispColor = new Color(0.220f, 0.682f, 0.878f);  // #38aee0
+
+        [MenuItem("Escape/Build How To Play Panels")]
+        public static void Run()
+        {
+            BuildIntoGameplayUI();
+            BuildIntoMainMenu();
+            AssetDatabase.SaveAssets();
+            Debug.Log("[HowToPlayBuilder] panels built (pause + main menu)");
+        }
+
+        static void BuildIntoGameplayUI()
+        {
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(HudPrefabPath) == null)
+            {
+                Debug.LogError($"[HowToPlayBuilder] {HudPrefabPath} missing — run HUDBuilder first");
+                return;
+            }
+
+            GameObject root = PrefabUtility.LoadPrefabContents(HudPrefabPath);
+            try
+            {
+                Transform safeArea = root.transform.Find("SafeArea");
+                Transform overlay = safeArea != null ? safeArea.Find("PauseOverlay") : null;
+                if (safeArea == null || overlay == null)
+                {
+                    Debug.LogError("[HowToPlayBuilder] GameplayUI structure unexpected — skipped");
+                    return;
+                }
+
+                // Panel last under SafeArea so it draws above the overlay.
+                HowToPlayPanel panel = BuildPanel((RectTransform)safeArea);
+
+                // Fifth pause row, below LEVEL SELECT (HUDBuilder stacks at 120 - i*120).
+                Transform oldBtn = overlay.Find("Btn_HowToPlay");
+                if (oldBtn != null)
+                    Object.DestroyImmediate(oldBtn.gameObject);
+                Button open = MakeTextButton((RectTransform)overlay, "Btn_HowToPlay", "HOW TO PLAY",
+                    new Vector2(0, -360), new Vector2(560, 96));
+                UnityEventTools.AddPersistentListener(open.onClick, panel.Open);
+
+                PrefabUtility.SaveAsPrefabAsset(root, HudPrefabPath);
+                Debug.Log($"[HowToPlayBuilder] panel added to {HudPrefabPath}");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        static void BuildIntoMainMenu()
+        {
+            var scene = EditorSceneManager.OpenScene("Assets/Scenes/Menu Scene.unity", OpenSceneMode.Single);
+            Canvas canvas = Object.FindObjectOfType<Canvas>();
+            if (canvas == null)
+            {
+                Debug.LogError("[HowToPlayBuilder] Menu Scene has no canvas — skipped");
+                return;
+            }
+
+            HowToPlayPanel panel = BuildPanel((RectTransform)canvas.transform);
+
+            // Below STORY (0,-85); PLAY/QUIT sit at -40/-170 in the menu's 160x30 style.
+            Button open = IntroCutsceneBuilder.FindOrCreateMenuButton((RectTransform)canvas.transform,
+                "HowToPlayButton", "HOW TO PLAY", new Vector2(0, -130));
+            for (int i = open.onClick.GetPersistentEventCount() - 1; i >= 0; i--)
+                UnityEventTools.RemovePersistentListener(open.onClick, i);
+            UnityEventTools.AddPersistentListener(open.onClick, panel.Open);
+
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log("[HowToPlayBuilder] panel + button added to Menu Scene");
+        }
+
+        /// <summary>
+        /// One reference card, rebuilt by name under the given canvas rect.
+        /// Starts inactive: HowToPlayPanel.Open is the entry point (its
+        /// wiring is lazy, and fades run on unscaled time for the pause menu).
+        /// </summary>
+        static HowToPlayPanel BuildPanel(RectTransform parent)
+        {
+            Transform old = parent.Find("HowToPlayPanel");
+            if (old != null)
+                Object.DestroyImmediate(old.gameObject);
+
+            RectTransform panelRect = NewRect("HowToPlayPanel", parent);
+            Stretch(panelRect);
+            Image dim = panelRect.gameObject.AddComponent<Image>();
+            dim.color = new Color(0.02f, 0.09f, 0.13f, 0.97f);   // matches SettingsPanel
+            CanvasGroup group = panelRect.gameObject.AddComponent<CanvasGroup>();
+            HowToPlayPanel panel = panelRect.gameObject.AddComponent<HowToPlayPanel>();
+            SetPrivate(panel, "root", panelRect.gameObject);
+            SetPrivate(panel, "canvasGroup", group);
+
+            MakeLabel(panelRect, "Title", "HOW TO PLAY", 64, new Vector2(0, 420), 1600);
+
+            HeroRow(panelRect, "Ember", "EMBER", EmberColor, 300,
+                "ARROW KEYS move   -   UP jumps (tap again mid-air)   -   SPACE shoots (red orb)");
+            HeroRow(panelRect, "Wisp", "WISP", WispColor, 210,
+                "A / D move   -   W jumps (tap again mid-air)   -   E becomes a platform (blue orb)");
+            HeroRow(panelRect, "Swap", "ONE PLAYER", new Color(1f, 0.9f, 0.4f), 120,
+                "tap the swap button or the other hero's portrait to switch - the waiting hero is safe");
+            HeroRow(panelRect, "Touch", "TOUCH", new Color(0.8f, 0.85f, 0.9f), 30,
+                "on-screen arrows move   -   A jumps   -   B acts   -   II pauses");
+            MakeLabel(panelRect, "Goal", "BOTH heroes must stand in their matching doors to escape!",
+                36, new Vector2(0, -70), 1600);
+
+            // Icon legend: star / heart / checkpoint torch.
+            Legend(panelRect, "LegendStar",
+                LoadSpriteWithFallback("Assets/Art/Generated/Props/star.png", "star_twinkle_0"),
+                "grab the star", -500);
+            Legend(panelRect, "LegendHeart",
+                LevelBuilder.FindGrottoSprite("heart"),
+                "heals a hero", 0);
+            Legend(panelRect, "LegendTorch",
+                LoadSpriteWithFallback("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0"),
+                "respawn point", 500);
+
+            Button close = MakeTextButton(panelRect, "Btn_Close", "GOT IT",
+                new Vector2(0, -420), new Vector2(360, 88));
+            UnityEventTools.AddPersistentListener(close.onClick, panel.Close);
+
+            panelRect.gameObject.SetActive(false);
+            return panel;
+        }
+
+        static void HeroRow(RectTransform parent, string name, string label, Color color,
+                            float y, string description)
+        {
+            TextMeshProUGUI title = MakeLabel(parent, name + "Name", label, 36,
+                new Vector2(-660, y), 320);
+            title.color = color;
+            title.alignment = TextAlignmentOptions.Left;
+            TextMeshProUGUI desc = MakeLabel(parent, name + "Keys", description, 30,
+                new Vector2(180, y), 1280);
+            desc.alignment = TextAlignmentOptions.Left;
+        }
+
+        static void Legend(RectTransform parent, string name, Sprite icon, string label, float x)
+        {
+            RectTransform row = NewRect(name, parent);
+            Place(row, new Vector2(x, -180), new Vector2(420, 90));
+
+            Image img = NewRect("Icon", row).gameObject.AddComponent<Image>();
+            Place((RectTransform)img.transform, new Vector2(-160, 0), new Vector2(72, 72));
+            if (icon != null)
+            {
+                img.sprite = icon;
+                img.preserveAspect = true;
+            }
+            img.raycastTarget = false;
+
+            TextMeshProUGUI text = NewRect("Label", row).gameObject.AddComponent<TextMeshProUGUI>();
+            Place((RectTransform)text.transform, new Vector2(40, 0), new Vector2(300, 90));
+            text.text = label;
+            text.fontSize = 30;
+            text.alignment = TextAlignmentOptions.Left;
+            text.raycastTarget = false;
+        }
+
+        // ---------- helpers (HUDBuilder idioms) ----------
+
+        static RectTransform NewRect(string name, Transform parent)
+        {
+            GameObject go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            return (RectTransform)go.transform;
+        }
+
+        static void Stretch(RectTransform rect)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        static void Place(RectTransform rect, Vector2 pos, Vector2 size)
+        {
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = pos;
+            rect.sizeDelta = size;
+        }
+
+        static TextMeshProUGUI MakeLabel(RectTransform parent, string name, string content,
+                                         float size, Vector2 pos, float width)
+        {
+            TextMeshProUGUI text = NewRect(name, parent).gameObject.AddComponent<TextMeshProUGUI>();
+            Place((RectTransform)text.transform, pos, new Vector2(width, size * 1.8f));
+            text.text = content;
+            text.fontSize = size;
+            text.alignment = TextAlignmentOptions.Center;
+            text.raycastTarget = false;
+            return text;
+        }
+
+        static Button MakeTextButton(RectTransform parent, string name, string label,
+                                     Vector2 pos, Vector2 size)
+        {
+            Image img = NewRect(name, parent).gameObject.AddComponent<Image>();
+            Place((RectTransform)img.transform, pos, size);
+            img.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            img.type = Image.Type.Sliced;
+            img.color = new Color(0.13f, 0.35f, 0.46f, 0.95f);
+            Button button = img.gameObject.AddComponent<Button>();
+
+            TextMeshProUGUI text = MakeLabel((RectTransform)img.transform, "Label", label,
+                Mathf.Min(44, size.y * 0.42f), Vector2.zero, size.x);
+            Stretch((RectTransform)text.transform);
+            return button;
+        }
+
+        static Sprite LoadSpriteWithFallback(string path, string name)
+        {
+            foreach (Object asset in AssetDatabase.LoadAllAssetsAtPath(path))
+                if (asset is Sprite sprite && sprite.name == name)
+                    return sprite;
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        }
+
+        static void SetPrivate(Object target, string field, Object value)
+        {
+            SerializedObject so = new SerializedObject(target);
+            SerializedProperty prop = so.FindProperty(field);
+            if (prop == null)
+            {
+                Debug.LogError($"[HowToPlayBuilder] Missing field {field} on {target.GetType().Name}");
+                return;
+            }
+            prop.objectReferenceValue = value;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+    }
+}

@@ -26,8 +26,7 @@ namespace Escape.EditorAutomation
                 "Assets/Art/Generated/Animations/Hero2/Hero2.controller");
 
             OverhaulBridge();
-            SwapSprite("Assets/GrottoEscapeArtwork/Prefabs/LavaSquare.prefab",
-                FirstSprite("Assets/Art/Generated/Props/lava.png", "lava_glow_0"), keepWorldSize: true);
+            OverhaulLavaSquare();
             SwapSprite("Assets/GrottoEscapeArtwork/Prefabs/Rectangle.prefab",
                 FirstSprite("Assets/Art/Generated/Props/crystal_slab.png", "crystal_slab_shimmer_0"), keepWorldSize: true);
 
@@ -143,6 +142,53 @@ namespace Escape.EditorAutomation
             }
         }
 
+        /// <summary>
+        /// Legacy L2/L3 lava pools are LavaSquare prefab instances. New art +
+        /// the 6-frame loop via SpriteCycler; tag/collider untouched so
+        /// kill-on-touch behavior cannot change. (The old pass pointed at a
+        /// wrong path — the prefab lives under Prefabs/Misc — and at the
+        /// retired lava_glow_* frame names, so it always skipped.)
+        /// </summary>
+        static void OverhaulLavaSquare()
+        {
+            const string path = "Assets/GrottoEscapeArtwork/Prefabs/Misc/LavaSquare.prefab";
+            Sprite[] frames = LevelBuilder.LavaFrames();
+            if (frames.Length == 0)
+            {
+                Debug.LogWarning("[PrefabVisualOverhaul] lava frames missing — LavaSquare skipped");
+                return;
+            }
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(path) == null)
+            {
+                Debug.LogWarning($"[PrefabVisualOverhaul] {path} not found — skipped");
+                return;
+            }
+
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                SpriteRenderer renderer = root.GetComponent<SpriteRenderer>();
+                Vector2 worldSize = renderer.bounds.size;
+                renderer.sprite = frames[0];
+                renderer.color = Color.white;
+                if (worldSize.sqrMagnitude > 0.001f)
+                    FitScaleToWorldSize(root.transform, renderer, worldSize);
+
+                var cycler = renderer.gameObject.GetComponent<SpriteCycler>();
+                if (cycler == null)
+                    cycler = renderer.gameObject.AddComponent<SpriteCycler>();
+                cycler.frames = frames;
+                cycler.fps = 6f;
+
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+                Debug.Log($"[PrefabVisualOverhaul] LavaSquare animated ({frames.Length} frames, world {worldSize})");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
         static void OverhaulLever()
         {
             const string path = "Assets/IndieMarc/PlatformerDemo/Prefabs/Lever.prefab";
@@ -181,7 +227,10 @@ namespace Escape.EditorAutomation
         /// <summary>
         /// The "Dragon"-tagged exit prefab keeps its tag + collider (the
         /// dragonCount win mechanic is untouched) but now looks like a
-        /// mystical portal instead of pack dragon art.
+        /// mystical portal instead of pack dragon art. Playtest 5: portals
+        /// are superseded by hero-matched ExitDoors — LevelBuilder no longer
+        /// places this prefab and disables the legacy instances; the re-skin
+        /// stays so any un-migrated scene still looks intentional.
         /// </summary>
         static void OverhaulExitPortals()
         {

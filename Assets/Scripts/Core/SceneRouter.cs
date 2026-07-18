@@ -10,6 +10,7 @@ public static class SceneRouter
     public const string Story = "Story Details";
     public const string LevelSelect = "Level Scene";
     public const string Lore = "MoreLore";
+    public const string IntroScene = "Intro";
     public const string LevelPrefix = "Level ";
 
     /// <summary>Total playable levels.</summary>
@@ -24,6 +25,7 @@ public static class SceneRouter
     public static void LoadStory() { SceneManager.LoadScene(Story); }
     public static void LoadLevelSelect() { SceneManager.LoadScene(LevelSelect); }
     public static void LoadLore() { SceneManager.LoadScene(Lore); }
+    public static void LoadIntro() { SceneManager.LoadScene(IntroScene); }
 
     public static void LoadLevel(int levelNumber)
     {

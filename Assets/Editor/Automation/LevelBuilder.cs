@@ -24,7 +24,6 @@ namespace Escape.EditorAutomation
         // Prefab paths.
         const string Player1Prefab = "Assets/IndieMarc/PlatformerDemo/Player1.prefab";
         const string Player2Prefab = "Assets/IndieMarc/PlatformerDemo/Player2.prefab";
-        const string ExitPrefab = "Assets/GrottoEscapeArtwork/Prefabs/Enemies/Dragon.prefab";
         const string LeverPrefab = "Assets/IndieMarc/PlatformerDemo/Prefabs/Lever.prefab";
         const string BridgePrefab = "Assets/GrottoEscapeArtwork/Prefabs/Misc/Bridge.prefab";
         const string PowerUp1Prefab = "Assets/GrottoEscapeArtwork/Prefabs/Misc/PowerUpOne.prefab";
@@ -128,22 +127,7 @@ namespace Escape.EditorAutomation
         /// </summary>
         static void AugmentLegacyLevel(LevelDefinition def)
         {
-            // The legacy scenes carry TWO tilemaps: a completely-full
-            // background layer (tiles == bounds area — no clear cells at
-            // all) and the real platform layer with the TilemapCollider2D.
-            // Only the collider layer represents standable geometry.
-            var tilemap = Object.FindObjectsOfType<Tilemap>()
-                .OrderByDescending(t => t.GetComponent<TilemapCollider2D>() != null ? 1 : 0)
-                .ThenByDescending(t =>
-                {
-                    t.CompressBounds();
-                    int count = 0;
-                    foreach (Vector3Int pos in t.cellBounds.allPositionsWithin)
-                        if (t.HasTile(pos))
-                            count++;
-                    return count;
-                })
-                .FirstOrDefault();
+            var tilemap = FindColliderTilemap();
             Vector2Int offset = Vector2Int.zero;
             if (tilemap != null)
             {
@@ -181,9 +165,8 @@ namespace Escape.EditorAutomation
             }
 
             GameObject holder = new GameObject(GenPrefix + "Pickups");
-            Sprite heart = FindGrottoSprite("heart");
             foreach (Vector2Int p in def.hearts)
-                SpriteEntity<HeartPickup>(holder, "Heart", LegacyWorld(p), heart, 0.8f);
+                AddHeart(holder, LegacyWorld(p));
             Sprite starSpriteL = FirstSprite("Assets/Art/Generated/Props/star.png", "star_twinkle_0");
             // The extractor's standable-scan silently produced empty arrays
             // for the legacy levels (their star/heart spots were never
@@ -199,23 +182,15 @@ namespace Escape.EditorAutomation
 
             if (def.hearts.Length == 0 && tilemap != null)
             {
-                Sprite heartFallback = FindGrottoSprite("heart");
                 foreach (float fx in new[] { 0.3f, 0.75f })
                 {
                     Vector3? spot = FindStandableWorld(tilemap, fx);
                     if (spot.HasValue)
-                        SpriteEntity<HeartPickup>(holder, "Heart", spot.Value, heartFallback, 0.8f);
+                        AddHeart(holder, spot.Value);
                 }
             }
-            Sprite torchUnlit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_unlit_0");
-            Sprite torchLit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0");
             foreach (Vector2Int p in def.checkpoints)
-            {
-                GameObject cp = SpriteEntity<Checkpoint>(holder, "Checkpoint", LegacyWorld(p), torchUnlit, 1.6f);
-                var comp = cp.GetComponent<Checkpoint>();
-                comp.unlitSprite = torchUnlit;
-                comp.litSprite = torchLit;
-            }
+                AddCheckpoint(holder, LegacyWorld(p));
 
             if (def.levelNumber == 1)
             {
@@ -225,13 +200,133 @@ namespace Escape.EditorAutomation
                 {
                     ("Hold ◀ ▶ to move, tap A to jump\n(tap A again mid-air!)", basePos + new Vector3(2, 0, 0), false),
                     ("Tap ⇄ (or your partner's portrait)\nto control the other hero", basePos + new Vector3(8, 0, 0), false),
-                    ("BOTH heroes must reach\na portal to escape!", basePos + new Vector3(14, 0, 0), true),
+                    ("BOTH heroes must stand in\ntheir matching doors to escape!", basePos + new Vector3(14, 0, 0), true),
                 };
                 foreach (var (msg, at, last) in hints)
                     AddHint(holder, msg, at, false, last);
             }
 
             AddSceneContextualHints(holder);
+            ConvertLegacyExits();
+        }
+
+        // ---------------- exit doors ----------------
+
+        const string DoorEmberSheet = "Assets/Art/Generated/Props/door_ember.png";
+        const string DoorWispSheet = "Assets/Art/Generated/Props/door_wisp.png";
+
+        /// <summary>
+        /// Legacy exits: the hand-placed "Dragon" portals become hero-matched
+        /// ExitDoors AT THEIR OWN POSITIONS (geometry rule: never move them).
+        /// The old portals stay in the scene but disabled — their solid
+        /// collider would otherwise wall off the new doorway (the win branch
+        /// in the player classes already stands down when ExitDoors exist).
+        /// </summary>
+        static void ConvertLegacyExits()
+        {
+            // Must also find the portals a previous run disabled —
+            // FindGameObjectsWithTag skips inactive objects.
+            var dragons = Object.FindObjectsOfType<Transform>(true)
+                .Where(t => t.gameObject.scene.IsValid() && t.gameObject.CompareTag("Dragon"))
+                .Select(t => t.gameObject)
+                .OrderBy(g => g.transform.position.x)
+                .ToList();
+            if (dragons.Count < 2)
+            {
+                Debug.LogError($"[LevelBuilder] legacy scene has {dragons.Count} Dragon exit(s) — expected 2+");
+                return;
+            }
+
+            foreach (GameObject dragon in dragons)
+                dragon.SetActive(false);
+
+            // More than two portals (L2 carries three): keep the pair that
+            // is farthest apart — the middle one sat next to the spawn.
+            GameObject left = dragons.First();
+            GameObject right = dragons.Last();
+
+            // EMBER/WISP assignment: the pairing that minimizes total
+            // spawn→door distance (heroes move identically, so either works;
+            // this one just reads naturally in co-op).
+            GameObject p1 = GameObject.Find("Player1");
+            GameObject p2 = GameObject.Find("Player2");
+            bool emberLeft = true;
+            if (p1 != null && p2 != null)
+            {
+                float leftFirst = Vector3.Distance(p1.transform.position, left.transform.position) +
+                                  Vector3.Distance(p2.transform.position, right.transform.position);
+                float rightFirst = Vector3.Distance(p1.transform.position, right.transform.position) +
+                                   Vector3.Distance(p2.transform.position, left.transform.position);
+                emberLeft = leftFirst <= rightFirst;
+            }
+
+            GameObject exitHolder = new GameObject(GenPrefix + "Exits");
+            PlaceExitDoor(exitHolder, "ExitDoor1", (emberLeft ? left : right).transform.position, 1);
+            PlaceExitDoor(exitHolder, "ExitDoor2", (emberLeft ? right : left).transform.position, 2);
+            Debug.Log($"[LevelBuilder] legacy exits: {dragons.Count} Dragon(s) disabled, 2 ExitDoors placed");
+        }
+
+        /// <summary>
+        /// Generated levels: drop the doorway to the floor — the authored
+        /// exit tile may sit above the actual ground. Returns the center of
+        /// a 2-tile-tall door whose bottom rests on the floor.
+        /// </summary>
+        static Vector3 DoorWorld(LevelDefinition def, Vector2Int exit)
+        {
+            int y = exit.y;
+            while (y > 0 && def.TileAt(exit.x, y - 1) != '#')
+                y--;
+            return new Vector3(exit.x + 0.5f, y + 1f, 0f);
+        }
+
+        /// <summary>
+        /// Hero-matched exit door: heroNumber 1 = EMBER (door_ember), 2 =
+        /// WISP (door_wisp); frames per the ExitDoor.cs editor-pass contract
+        /// (closed_0 / half_0..1 / open_0..3). ~1x2 tiles with a trigger
+        /// covering the doorway down to the floor — ExitDoor occupancy tests
+        /// the hero's PIVOT via OverlapPoint, so a short box would never fire.
+        /// </summary>
+        internal static GameObject PlaceExitDoor(GameObject holder, string name, Vector3 pos, int heroNumber)
+        {
+            string sheet = heroNumber == 1 ? DoorEmberSheet : DoorWispSheet;
+            string baseName = System.IO.Path.GetFileNameWithoutExtension(sheet);
+
+            GameObject door = new GameObject(name);
+            door.transform.SetParent(holder.transform, false);
+            door.transform.position = pos;
+
+            var renderer = door.AddComponent<SpriteRenderer>();
+            Sprite closed = FirstSprite(sheet, baseName + "_closed_0");
+            renderer.sprite = closed;
+            renderer.sortingOrder = 1;   // above tiles, below pickups (2)
+
+            // 16x32 @ 16 PPU is exactly 1x2 tiles at scale 1 — normalize
+            // anyway in case the art resolution changes again.
+            if (closed != null && closed.bounds.size.y > 0.001f)
+            {
+                float scale = 2f / closed.bounds.size.y;
+                door.transform.localScale = new Vector3(scale, scale, 1f);
+            }
+
+            var box = door.AddComponent<BoxCollider2D>();
+            box.isTrigger = true;
+            box.size = closed != null ? (Vector2)closed.bounds.size : new Vector2(1f, 2f);
+
+            var exit = door.AddComponent<ExitDoor>();
+            exit.heroNumber = heroNumber;
+            exit.closedFrames = DoorFrames(sheet, baseName, "closed_0");
+            exit.halfLitFrames = DoorFrames(sheet, baseName, "half_0", "half_1");
+            exit.openFrames = DoorFrames(sheet, baseName, "open_0", "open_1", "open_2", "open_3");
+            exit.fps = 6f;
+            if (closed == null)
+                Debug.LogWarning($"[LevelBuilder] {baseName} sprites missing — door frames stay empty until the sheet imports");
+            return door;
+        }
+
+        static Sprite[] DoorFrames(string sheet, string baseName, params string[] frames)
+        {
+            return frames.Select(f => FirstSprite(sheet, baseName + "_" + f))
+                .Where(s => s != null).ToArray();
         }
 
         /// <summary>
@@ -293,13 +388,7 @@ namespace Escape.EditorAutomation
             Tilemap deco = NewTilemap(gridObj, "Decoration");
             deco.GetComponent<TilemapRenderer>().sortingOrder = -1;
 
-            Sprite lavaSprite = FirstSprite("Assets/Art/Generated/Props/lava.png", "lava_glow_0");
-            Tile lavaTile = null;
-            if (lavaSprite != null)
-            {
-                lavaTile = ScriptableObject.CreateInstance<Tile>();
-                lavaTile.sprite = lavaSprite;
-            }
+            TileBase lavaTile = EnsureLavaTile();
             Tilemap lava = NewTilemap(gridObj, "Lava");
             lava.GetComponent<TilemapRenderer>().sortingOrder = 1;
 
@@ -357,6 +446,51 @@ namespace Escape.EditorAutomation
             return obj.GetComponent<Tilemap>();
         }
 
+        /// <summary>
+        /// Persistent AnimatedTile asset for the 6-frame lava loop
+        /// (2d-tilemap-extras is in the manifest). Replaces the old
+        /// in-memory Tile instance, which was never saved as an asset — the
+        /// reference died on scene reload. Collider stays None: the
+        /// GEN_LavaVolume boxes own kill-on-touch, which must not change.
+        /// </summary>
+        internal static TileBase EnsureLavaTile()
+        {
+            const string assetPath = "Assets/Levels/LavaTile.asset";
+            Sprite[] frames = LavaFrames();
+            if (frames.Length == 0)
+            {
+                Debug.LogError("[LevelBuilder] lava.png has no sprites — lava tiles skipped");
+                return null;
+            }
+
+            var tile = AssetDatabase.LoadAssetAtPath<UnityEngine.Tilemaps.AnimatedTile>(assetPath);
+            if (tile == null)
+            {
+                tile = ScriptableObject.CreateInstance<UnityEngine.Tilemaps.AnimatedTile>();
+                if (!AssetDatabase.IsValidFolder("Assets/Levels"))
+                    AssetDatabase.CreateFolder("Assets", "Levels");
+                AssetDatabase.CreateAsset(tile, assetPath);
+            }
+            tile.m_AnimatedSprites = frames;
+            tile.m_MinSpeed = 6f;
+            tile.m_MaxSpeed = 6f;
+            tile.m_TileColliderType = Tile.ColliderType.None;
+            EditorUtility.SetDirty(tile);
+            return tile;
+        }
+
+        /// <summary>
+        /// All lava frames in loop order. The regenerated manifest names its
+        /// frames lava_0..lava_5 and the slicer prefixes the sheet name
+        /// (lava_lava_0...), so load the whole sheet sorted instead of
+        /// hardcoding a spelling or a frame count.
+        /// </summary>
+        internal static Sprite[] LavaFrames()
+        {
+            return AssetDatabase.LoadAllAssetsAtPath("Assets/Art/Generated/Props/lava.png")
+                .OfType<Sprite>().OrderBy(s => s.name).ToArray();
+        }
+
         // ---------------- entities ----------------
 
         static Vector3 World(Vector2Int tile) { return new Vector3(tile.x + 0.5f, tile.y + 0.5f, 0f); }
@@ -367,8 +501,10 @@ namespace Escape.EditorAutomation
 
             Place(Player1Prefab, World(def.player1Spawn), holder, "Player1", asPrefab: true, reuseExisting: true);
             Place(Player2Prefab, World(def.player2Spawn), holder, "Player2", asPrefab: true, reuseExisting: true);
-            NormalizeSpriteHeight(Place(ExitPrefab, World(def.exit1), holder, "ExitPortal1", asPrefab: true), 2.0f, resizeCollider: false);
-            NormalizeSpriteHeight(Place(ExitPrefab, World(def.exit2), holder, "ExitPortal2", asPrefab: true), 2.0f, resizeCollider: false);
+            // Playtest 5: hero-matched ExitDoors replace the solid Dragon
+            // portals (ExitDoor wins when BOTH heroes hold their doors).
+            PlaceExitDoor(holder, "ExitDoor1", DoorWorld(def, def.exit1), 1);
+            PlaceExitDoor(holder, "ExitDoor2", DoorWorld(def, def.exit2), 2);
 
             foreach (var e in def.enemies)
                 PlaceEnemy(e, holder);
@@ -394,29 +530,22 @@ namespace Escape.EditorAutomation
                 }
             }
 
+            // 1.8 tiles: keep in lockstep with PlaytestFixes.SwapPowerupSprite.
             foreach (Vector2Int p in def.powerUpOne)
-                NormalizeSpriteHeight(Place(PowerUp1Prefab, World(p), holder, "PowerUpOne", asPrefab: true), 1.4f);
+                NormalizeSpriteHeight(Place(PowerUp1Prefab, World(p), holder, "PowerUpOne", asPrefab: true), 1.8f);
             foreach (Vector2Int p in def.powerUpTwo)
-                NormalizeSpriteHeight(Place(PowerUp2Prefab, World(p), holder, "PowerUpTwo", asPrefab: true), 1.4f);
+                NormalizeSpriteHeight(Place(PowerUp2Prefab, World(p), holder, "PowerUpTwo", asPrefab: true), 1.8f);
 
-            Sprite heart = FindGrottoSprite("heart");
             foreach (Vector2Int p in def.hearts)
-                SpriteEntity<HeartPickup>(holder, "Heart", World(p), heart, 0.8f);
+                AddHeart(holder, World(p));
 
             Sprite starSprite = FirstSprite("Assets/Art/Generated/Props/star.png", "star_twinkle_0");
             // Mario-style: exactly ONE star per level (first authored spot).
             if (def.crystals.Length > 0)
                 AddCoinSpin(SpriteEntity<Crystal>(holder, "Star", World(def.crystals[0]), starSprite, 1.1f));
 
-            Sprite torchUnlit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_unlit_0");
-            Sprite torchLit = FirstSprite("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0");
             foreach (Vector2Int p in def.checkpoints)
-            {
-                GameObject cp = SpriteEntity<Checkpoint>(holder, "Checkpoint", World(p), torchUnlit, 1.6f);
-                var comp = cp.GetComponent<Checkpoint>();
-                comp.unlitSprite = torchUnlit;
-                comp.litSprite = torchLit;
-            }
+                AddCheckpoint(holder, World(p));
 
             BuildHints(def, holder);
 
@@ -451,14 +580,22 @@ namespace Escape.EditorAutomation
                 if (mp.isLavaRiserRide)
                 {
                     // Riser volume spanning the shaft bottom + its trigger.
-                    Sprite lavaArt = FirstSprite("Assets/Art/Generated/Props/lava.png", "lava_glow_0");
+                    Sprite[] lavaFrames = LavaFrames();
                     GameObject riserObj = new GameObject(GenPrefix + "LavaRiser");
                     riserObj.transform.SetParent(holder.transform, false);
                     riserObj.transform.position = World(mp.from) + Vector3.down * 3f;
                     var riserSprite = riserObj.AddComponent<SpriteRenderer>();
-                    riserSprite.sprite = lavaArt;
+                    riserSprite.sprite = lavaFrames.FirstOrDefault();
                     riserSprite.drawMode = SpriteDrawMode.Tiled;
                     riserSprite.size = new Vector2(def.GridWidth, 2f);
+                    // SpriteCycler swaps sprites under the tiled draw mode —
+                    // the surface churns as it rises.
+                    if (lavaFrames.Length > 1)
+                    {
+                        var riserCycler = riserObj.AddComponent<SpriteCycler>();
+                        riserCycler.frames = lavaFrames;
+                        riserCycler.fps = 6f;
+                    }
                     var riserBox = riserObj.AddComponent<BoxCollider2D>();
                     riserBox.size = riserSprite.size;
                     var riser = riserObj.AddComponent<LavaRiser>();
@@ -488,7 +625,7 @@ namespace Escape.EditorAutomation
                     World(def.player1Spawn) + new Vector3(2, 0, 0), false, false);
                 AddHint(holder, "Tap ⇄ (or your partner's portrait)\nto control the other hero",
                     World(def.player1Spawn) + new Vector3(8, 0, 0), false, false);
-                AddHint(holder, "BOTH heroes must reach\na portal to escape!",
+                AddHint(holder, "BOTH heroes must stand in\ntheir matching doors to escape!",
                     World(def.exit1) + new Vector3(-6, 0, 0), false, true);
             }
 
@@ -547,12 +684,34 @@ namespace Escape.EditorAutomation
         }
 
         /// <summary>
+        /// The legacy scenes carry TWO tilemaps: a completely-full background
+        /// layer (tiles == bounds area — no clear cells at all) and the real
+        /// platform layer with the TilemapCollider2D. Only the collider layer
+        /// represents standable geometry.
+        /// </summary>
+        internal static Tilemap FindColliderTilemap()
+        {
+            return Object.FindObjectsOfType<Tilemap>()
+                .OrderByDescending(t => t.GetComponent<TilemapCollider2D>() != null ? 1 : 0)
+                .ThenByDescending(t =>
+                {
+                    t.CompressBounds();
+                    int count = 0;
+                    foreach (Vector3Int pos in t.cellBounds.allPositionsWithin)
+                        if (t.HasTile(pos))
+                            count++;
+                    return count;
+                })
+                .FirstOrDefault();
+        }
+
+        /// <summary>
         /// Standable spot from live tilemap geometry: the first cell (searching
         /// down from 60% height at the given width fraction, then nearby
         /// columns) whose cell below has a tile and which is itself clear,
         /// returned as a world position 1.5 tiles above the ground surface.
         /// </summary>
-        static Vector3? FindStandableWorld(Tilemap tilemap, float fractionX)
+        internal static Vector3? FindStandableWorld(Tilemap tilemap, float fractionX)
         {
             if (tilemap == null)
                 return null;
@@ -691,6 +850,25 @@ namespace Escape.EditorAutomation
                 enemy.AddComponent<T>();
         }
 
+        /// <summary>Torch checkpoint in the standard structure (shared with
+        /// PlaytestFixes.EaseLevelOne — keep every checkpoint identical).</summary>
+        internal static GameObject AddCheckpoint(GameObject holder, Vector3 pos)
+        {
+            const string torchSheet = "Assets/Art/Generated/Props/checkpoint_torch.png";
+            Sprite torchUnlit = FirstSprite(torchSheet, "checkpoint_torch_unlit_0");
+            Sprite torchLit = FirstSprite(torchSheet, "checkpoint_torch_lit_0");
+            GameObject cp = SpriteEntity<Checkpoint>(holder, "Checkpoint", pos, torchUnlit, 1.6f);
+            var comp = cp.GetComponent<Checkpoint>();
+            comp.unlitSprite = torchUnlit;
+            comp.litSprite = torchLit;
+            return cp;
+        }
+
+        internal static GameObject AddHeart(GameObject holder, Vector3 pos)
+        {
+            return SpriteEntity<HeartPickup>(holder, "Heart", pos, FindGrottoSprite("heart"), 0.8f);
+        }
+
         static GameObject SpriteEntity<T>(GameObject holder, string name, Vector3 pos, Sprite sprite,
                                           float targetHeight = 1.0f)
             where T : Component
@@ -822,8 +1000,9 @@ namespace Escape.EditorAutomation
 
             foreach (Vector2Int c in def.crystals)
                 PointLight(holder, World(c), new Color(0.3f, 0.9f, 0.9f), 3f, 0.8f);
-            PointLight(holder, World(def.exit1), new Color(0.4f, 1f, 0.6f), 4f, 1f);
-            PointLight(holder, World(def.exit2), new Color(0.4f, 1f, 0.6f), 4f, 1f);
+            // Hero-matched door glow (EMBER warm / WISP cool).
+            PointLight(holder, World(def.exit1), new Color(1f, 0.55f, 0.3f), 4f, 1f);
+            PointLight(holder, World(def.exit2), new Color(0.3f, 0.7f, 1f), 4f, 1f);
             foreach (Vector2Int p in def.checkpoints)
                 PointLight(holder, World(p) + Vector3.up, new Color(1f, 0.7f, 0.3f), 3f, 0.9f);
         }
@@ -921,6 +1100,10 @@ namespace Escape.EditorAutomation
                 new EditorBuildSettingsScene("Assets/Scenes/Story Details.unity", true),
                 new EditorBuildSettingsScene("Assets/Scenes/Level Scene.unity", true),
             };
+            // Intro ships once IntroCutsceneBuilder has created it — listing
+            // a missing scene would fail the player build outright.
+            if (System.IO.File.Exists("Assets/Scenes/Intro.unity"))
+                scenes.Insert(1, new EditorBuildSettingsScene("Assets/Scenes/Intro.unity", true));
             foreach (int n in levelNumbers.OrderBy(n => n))
                 scenes.Add(new EditorBuildSettingsScene($"Assets/Scenes/Level {n}.unity", true));
             scenes.Add(new EditorBuildSettingsScene("Assets/Scenes/MoreLore.unity", true));

@@ -15,11 +15,27 @@ public class MainMenu : MonoBehaviour
 
     public void OnPlayButton()
     {
+        // First launch plays the intro cutscene, which flows into Level 1
+        // (IntroCutscene sets IntroSeen when it finishes or is skipped).
+        if (!SaveSystem.IntroSeen)
+        {
+            SceneRouter.LoadIntro();
+            return;
+        }
+
         // Returning players skip the story (it stays reachable from level select).
         if (SaveSystem.StorySeen)
             SceneRouter.LoadLevelSelect();
         else
             SceneRouter.LoadStory();
+    }
+
+    public void OnStoryButton()
+    {
+        // Rewatch the intro from the menu: ReplayMode makes IntroCutscene
+        // return here when it ends and write no progress.
+        IntroCutscene.ReplayMode = true;
+        SceneRouter.LoadIntro();
     }
 
     public void OnQuitButton()

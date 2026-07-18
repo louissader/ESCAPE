@@ -33,47 +33,52 @@ ENV = palette.ENV
 # ------------------------------------------------------------------ lava
 
 def gen_lava():
-    """16x16, 4-frame animated glow ramp. Bright crusting top, dark body."""
+    """16x16, 6-frame seamless lava loop. Bright crusting top, dark body.
+
+    Rolling surface waves are sums of integer-harmonic sinusoids of the tile
+    width, so the left edge continues the right edge; bubbles ride fixed
+    wrapped tracks. Every term is a function of `f mod 6`, so frame 5 flows
+    straight back into frame 0.
+    """
     hot = hex_rgba("#ffd23f")            # near-white-hot highlight
     o = ENV["lava_orange"]               # #ff8d07 from the tileset
     deep = hex_rgba("#c23a10")           # deep molten red
     dark = hex_rgba("#7a1a08")           # darkest body
-    c = {"H": hot, "O": o, "R": deep, "D": dark}
 
-    # Body rows are static; the surface waves + embedded blobs pulse per frame.
+    n = 6
+    # rising ember bubbles: (column, phase offset into the 6-frame rise cycle)
+    tracks = [(2, 0), (7, 2), (12, 4), (5, 3), (14, 1)]
     frames = []
-    surface_cycles = [
-        "HOHHOOHHHOOHHOHO",
-        "OHHOHOHHOHHOHHOH",
-        "HHOOHHOHHOHOHHHO",
-        "OHOHOHHHOOHHOHHO",
-    ]
-    blob_rows = [
-        [(3, 4, "O"), (10, 6, "O"), (6, 9, "R"), (13, 11, "O"), (2, 12, "R")],
-        [(4, 4, "O"), (11, 6, "R"), (5, 9, "O"), (12, 11, "O"), (2, 13, "R")],
-        [(3, 5, "O"), (10, 7, "O"), (6, 10, "R"), (13, 12, "O"), (1, 12, "R")],
-        [(4, 5, "R"), (11, 7, "O"), (5, 10, "O"), (12, 12, "R"), (2, 11, "O")],
-    ]
-    for f in range(4):
+    for f in range(n):
+        t = 2 * math.pi * f / n
         img = blank(16, 16)
-        for y in range(16):
-            if y == 0:
-                row = surface_cycles[f]
-                for x, ch in enumerate(row):
-                    img[y, x] = c[ch]
-            elif y == 1:
-                img[y, :] = o
-            elif y <= 4:
-                img[y, :] = deep
-            else:
-                img[y, :] = dark
-        # rising hot blobs
-        for x, y, ch in blob_rows[f]:
-            img[y, x] = c[ch]
-            if x + 1 < 16:
-                img[y, x + 1] = c[ch]
+        for x in range(16):
+            w1 = math.sin(2 * math.pi * x / 16 + t)
+            w2 = math.sin(2 * math.pi * 2 * x / 16 - t)
+            crust = 1.0 + 0.9 * w1 + 0.5 * w2                     # hot crust
+            band = crust + 2.2 + 0.8 * math.sin(2 * math.pi * x / 16 + t + 1.7)
+            glow = band + 4.0 + 1.2 * math.sin(2 * math.pi * 2 * x / 16 + t + 0.6)
+            for y in range(16):
+                if y < crust:
+                    img[y, x] = hot if w1 + 0.5 * w2 > 0.55 else o
+                elif y < band:
+                    img[y, x] = o
+                elif y < glow:
+                    img[y, x] = deep
+                else:
+                    img[y, x] = dark
+        # bubbles rise 13 -> 3 over the cycle, drifting one column per frame
+        for x0, off in tracks:
+            ph = (f + off) % n
+            y = 13 - 2 * ph
+            bx = (x0 + ph) % 16
+            col = deep if y >= 11 else (o if y >= 7 else hot)
+            img[y, bx] = col
+            img[y, (bx + 1) % 16] = col
+            if ph == 5:  # bubble bursts at the crust: occasional bright fleck
+                img[y - 1, bx] = hot
         frames.append(img)
-    save_strip(frames, [f"lava_{i}" for i in range(4)], out_path("Props", "lava.png"))
+    save_strip(frames, [f"lava_{i}" for i in range(n)], out_path("Props", "lava.png"))
 
 
 # ------------------------------------------------------------------ bridge
@@ -311,6 +316,134 @@ def gen_exit_portal():
     )
 
 
+# ------------------------------------------------------------------ per-hero exit doors
+
+def gen_door(hero):
+    """16x32 stone-arch cave door (1x2 tiles) for one hero, 7 frames.
+
+    closed_0          dark sealed slab inside the arch
+    half_0 / half_1   soft 2-frame glow pulse in the hero's palette
+    open_0..open_3    glow burst -> slab dissolves -> settled open portal
+    """
+    pal = palette.EMBER if hero == "ember" else palette.WISP
+    white = hex_rgba("#fff0c8" if hero == "ember" else "#dffcf0")
+    seal = hex_rgba("#1b1016")     # sealed slab
+    seam = hex_rgba("#120a10")     # slab seams
+    c = {
+        "S": ENV["stone"],
+        "L": ENV["stone_light"],
+        "D": ENV["stone_dark"],
+        "I": seal,
+    }
+    # 14x30 arch placed at (1,1) so the outline keeps its 1px margin.
+    rows = (
+        [
+            "....LLLLLL....",
+            "..LLSSSSSSLL..",
+            ".LSSSSSSSSSSL.",
+            ".LSSIIIIIISSL.",
+            "LSSIIIIIIIISSL",
+        ]
+        + ["LSIIIIIIIIIISL"] * 23
+        + [
+            "LDDDDDDDDDDDDL",
+            ".LLLLLLLLLLLL.",
+        ]
+    )
+    # mortar seams up the jambs so the arch reads as coursed masonry
+    rows = [list(r) for r in rows]
+    for r in range(7, 27, 5):
+        rows[r][1] = "D"
+        rows[r][12] = "D"
+    rows = ["".join(r) for r in rows]
+    arch = grid(rows, c)
+    inner = [(x, y) for y, row in enumerate(rows) for x, ch in enumerate(row) if ch == "I"]
+    inner_set = set(inner)
+
+    # interior distance field, squashed vertically so bands read as an oval
+    def dist(gx, gy):
+        return math.hypot(gx - 6.5, (gy - 14.5) * 0.55)
+
+    def base():
+        img = blank(16, 32)
+        blit(img, arch, 1, 1)
+        return img
+
+    def sealed():
+        """Sealed slab: center split + block seams behind everything."""
+        img = base()
+        for gx, gy in inner:
+            if gx == 7 or gy in (9, 15, 21):
+                img[gy + 1, gx + 1] = seam
+        return img
+
+    def bands(img, stops):
+        """Fill the interior by distance: stops = [(radius, color), ...]."""
+        for gx, gy in inner:
+            d = dist(gx, gy)
+            for r, col in stops:
+                if d <= r:
+                    img[gy + 1, gx + 1] = col
+                    break
+
+    def glow(img, r_core, r_halo, f):
+        """Soft dithered glow over the sealed slab (the half-lit pulse)."""
+        for gx, gy in inner:
+            d = dist(gx, gy)
+            if d <= r_core:
+                img[gy + 1, gx + 1] = pal["secondary"]
+            elif d <= r_halo and (gx + gy + f) % 2 == 0:
+                img[gy + 1, gx + 1] = pal["primary"]
+
+    def swirl(img, phase, col_in, col_out):
+        """Two spiral arms inside the open portal (as in the exit portal)."""
+        for arm in range(2):
+            a0 = phase + arm * math.pi
+            for i in range(10):
+                t = i / 9.0
+                ang = a0 + t * 2.4
+                r = 1.0 + t * 5.0
+                gx = int(round(6.5 + math.cos(ang) * r))
+                gy = int(round(14.5 + math.sin(ang) * r / 0.55))
+                if (gx, gy) in inner_set:
+                    img[gy + 1, gx + 1] = col_in if t < 0.4 else col_out
+
+    frames = []
+    # closed: dark sealed arch
+    frames.append(sealed())
+    # half-lit: 2-frame soft pulse in the hero's colors
+    for f in range(2):
+        img = sealed()
+        glow(img, 1.0 + 0.8 * f, 3.4 + 1.4 * f, f)
+        if f == 1:
+            img[15, 8] = pal["highlight"]
+        frames.append(img)
+    # open_0: the glow bursts and floods the doorway
+    img = base()
+    bands(img, [(2.5, white), (5.0, pal["highlight"]), (99, pal["secondary"])])
+    frames.append(img)
+    # open_1: slab dissolving into portal energy
+    img = base()
+    bands(img, [(1.8, white), (4.5, pal["secondary"]), (99, pal["primary"])])
+    swirl(img, 0.0, white, pal["highlight"])
+    frames.append(img)
+    # open_2 / open_3: settled open portal, swirl rotates between the two
+    for f in range(2):
+        img = base()
+        bands(
+            img,
+            [(1.2, white), (3.0, pal["highlight"]), (5.5, pal["secondary"]), (99, pal["primary"])],
+        )
+        swirl(img, math.pi / 2 + f * math.pi, white, pal["highlight"])
+        frames.append(img)
+
+    save_strip(
+        [outline(fr, K) for fr in frames],
+        ["closed_0", "half_0", "half_1", "open_0", "open_1", "open_2", "open_3"],
+        out_path("Props", f"door_{hero}.png"),
+    )
+
+
 # ------------------------------------------------------------------ checkpoint torch
 
 def gen_checkpoint_torch():
@@ -517,11 +650,12 @@ def gen_ui_buttons():
 # ------------------------------------------------------------------ powerup orbs
 
 def _orb_frames(pal, white_hex):
-    """4-frame pulsing power-up orb (16x16) in a hero palette.
+    """4-frame pulsing power-up orb (32x32) in a hero palette.
 
-    Deep `primary` core, `secondary` mid body, mint/gold `highlight` +
-    near-white specular, dark outline. The pulse cycles core brightness (a
-    growing/shrinking bloom) and a soft 1px dithered halo that grows/shrinks.
+    Deep `primary` core, `secondary` mid body, a rotating two-arm `highlight`
+    energy swirl, near-white specular, 1px dark outline. The pulse cycles core
+    brightness (a growing/shrinking bloom) and a soft dithered halo. Drawn at
+    32x32 so the orb stays crisp when scaled to ~1.8 tiles in-game.
     """
     core = pal["primary"]
     mid = pal["secondary"]
@@ -529,33 +663,50 @@ def _orb_frames(pal, white_hex):
     Kp = pal["outline"]
     white = hex_rgba(white_hex)
 
-    cx, cy = 7.5, 7.5
-    R = 5.0
-    bloom_r = [0.0, 1.3, 2.2, 1.3]   # brightness pulse (trough -> peak -> back)
-    halo_r = [5.8, 6.5, 7.2, 6.5]    # aura ring grows then shrinks
+    cx, cy = 15.5, 15.5
+    R = 11.0
+    bloom_r = [0.0, 2.6, 4.4, 2.6]     # brightness pulse (trough -> peak -> back)
+    halo_r = [11.6, 13.0, 14.4, 13.0]  # aura ring grows then shrinks
 
     frames = []
     for f in range(4):
-        img = blank(16, 16)
-        # solid orb: deep core -> bright mid body
-        for y in range(16):
-            for x in range(16):
+        img = blank(32, 32)
+        # solid orb: deep inner core -> bright mid body
+        for y in range(32):
+            for x in range(32):
                 d = math.hypot(x - cx, y - cy)
                 if d <= R:
-                    col = core if d <= 2.3 else mid
+                    col = core if d <= 4.6 else mid
                     if d <= bloom_r[f]:
                         col = hi          # brightening core bloom at the peak
                     img[y, x] = col
+        # rotating two-arm energy swirl inside the body
+        phase = f * math.pi / 2
+        for arm in range(2):
+            a0 = phase + arm * math.pi
+            for i in range(12):
+                t = i / 11.0
+                ang = a0 + t * 2.6
+                r = 3.2 + t * 6.4
+                col = white if t < 0.25 else hi
+                x = int(round(cx + math.cos(ang) * r))
+                y = int(round(cy + math.sin(ang) * r))
+                for dx in (0, 1):  # 2px-thick so the swirl survives scaling
+                    if math.hypot(x + dx - cx, y - cy) <= R - 0.5:
+                        img[y, x + dx] = col
         # upper-left specular highlight (reads as a glassy gem)
-        img[5, 6] = white
-        img[5, 7] = hi
-        img[6, 6] = hi
-        img[6, 5] = hi
+        img[10, 12] = white
+        img[10, 13] = white
+        img[11, 12] = white
+        img[11, 13] = hi
+        img[11, 11] = hi
+        img[12, 11] = hi
+        img[10, 14] = hi
         img = outline(img, Kp)
         # soft halo AFTER outlining so the aura stays a 1px dithered glow
         hr = halo_r[f]
-        for y in range(16):
-            for x in range(16):
+        for y in range(32):
+            for x in range(32):
                 d = math.hypot(x - cx, y - cy)
                 if hr - 0.6 <= d <= hr + 0.6 and (x + y + f) % 2 == 0:
                     if img[y, x, 3] == 0:
@@ -649,6 +800,8 @@ def generate():
     gen_lever()
     gen_crystal_slab()
     gen_exit_portal()
+    gen_door("ember")
+    gen_door("wisp")
     gen_checkpoint_torch()
     gen_ui_buttons()
     gen_star_coin()

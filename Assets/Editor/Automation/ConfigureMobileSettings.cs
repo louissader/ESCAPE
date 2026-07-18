@@ -12,7 +12,7 @@ namespace Escape.EditorAutomation
     public static class ConfigureMobileSettings
     {
         public const string BundleId = "com.louissader.escape";
-        public const string Version = "1.0.0";
+        public const string Version = "1.1.0";   // Playtest 5 release (was 1.0.0)
 
         [MenuItem("Escape/Configure Mobile Settings")]
         public static void Run()
@@ -23,8 +23,14 @@ namespace Escape.EditorAutomation
             PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, BundleId);
             PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.iOS, BundleId);
             PlayerSettings.bundleVersion = Version;
-            PlayerSettings.iOS.buildNumber = "1";
-            PlayerSettings.Android.bundleVersionCode = 1;
+            // Second store submission: build 2 / versionCode 2 (1.0.0 shipped
+            // as 1). Read-first with a floor, never a blind increment — the
+            // stores reject downgrades, and BuildScript calls Run() once per
+            // platform build, so incrementing here would drift per run.
+            int.TryParse(PlayerSettings.iOS.buildNumber, out int iosBuild);
+            PlayerSettings.iOS.buildNumber = Mathf.Max(2, iosBuild).ToString();
+            PlayerSettings.Android.bundleVersionCode =
+                Mathf.Max(2, PlayerSettings.Android.bundleVersionCode);
 
             // Graphics: the project renders in LINEAR color space, but the
             // legacy Android API list included OpenGLES2 (incompatible —

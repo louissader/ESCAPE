@@ -24,4 +24,12 @@ public class SceneRouterTests
             Assert.Contains(SceneRouter.LevelSceneName(i), names,
                 $"Level {i} missing from Build Settings");
     }
+
+    [Test]
+    public void IntroScene_ConstantMatchesBuilderSceneName()
+    {
+        // The editor pass creates the intro scene literally named "Intro" —
+        // SceneRouter.LoadIntro loads by this constant, so they must agree.
+        Assert.AreEqual("Intro", SceneRouter.IntroScene);
+    }
 }
