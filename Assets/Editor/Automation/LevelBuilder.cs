@@ -21,6 +21,15 @@ namespace Escape.EditorAutomation
         const string GenPrefix = "GEN_";
         const int GroundLayer = 0; // resolved at runtime from "Level" layer if present
 
+        // Draw-order contract, ALL on the Default sorting layer (verified
+        // against the legacy scene YAML — nothing in L1-3 uses another
+        // layer): parallax BG -60/-45, deco tilemap -1, terrain/art tilemap
+        // 0, doors + decorative props 1, pickups/stars/hearts/checkpoints 2.
+        // Doors sit ONE below the pickups so collectibles always read on
+        // top of a doorway.
+        const int PickupSortingOrder = 2;
+        const int DoorSortingOrder = PickupSortingOrder - 1;
+
         // Prefab paths.
         const string Player1Prefab = "Assets/IndieMarc/PlatformerDemo/Player1.prefab";
         const string Player2Prefab = "Assets/IndieMarc/PlatformerDemo/Player2.prefab";
@@ -208,6 +217,7 @@ namespace Escape.EditorAutomation
 
             AddSceneContextualHints(holder);
             ConvertLegacyExits();
+            DecorateLegacyLevel(def);
         }
 
         // ---------------- exit doors ----------------
@@ -261,9 +271,89 @@ namespace Escape.EditorAutomation
             }
 
             GameObject exitHolder = new GameObject(GenPrefix + "Exits");
-            PlaceExitDoor(exitHolder, "ExitDoor1", (emberLeft ? left : right).transform.position, 1);
-            PlaceExitDoor(exitHolder, "ExitDoor2", (emberLeft ? right : left).transform.position, 2);
+            // Dragons were hand-placed by eye and some hover — ground each
+            // doorway on the COLLIDER tilemap floor (the art tilemap has
+            // tiles in every cell and cannot answer "where is the ground").
+            Tilemap colliderTilemap = FindColliderTilemap();
+            Vector3 emberPos = GroundLegacyDoor(colliderTilemap, (emberLeft ? left : right).transform.position);
+            Vector3 wispPos = GroundLegacyDoor(colliderTilemap, (emberLeft ? right : left).transform.position);
+            PlaceExitDoor(exitHolder, "ExitDoor1", emberPos, 1);
+            PlaceExitDoor(exitHolder, "ExitDoor2", wispPos, 2);
             Debug.Log($"[LevelBuilder] legacy exits: {dragons.Count} Dragon(s) disabled, 2 ExitDoors placed");
+            HideLegacyExitProps();
+        }
+
+        /// <summary>
+        /// Drops a legacy doorway so its 2-tile body starts ON the floor:
+        /// step up out of any solid the raw point is buried in, then fall to
+        /// the first cell whose cell-below is solid. Keeps the authored spot
+        /// (with a loud warning) when no floor exists within reach.
+        /// </summary>
+        static Vector3 GroundLegacyDoor(Tilemap colliderTilemap, Vector3 raw)
+        {
+            if (colliderTilemap == null)
+                return raw;
+            Vector3Int cell = colliderTilemap.WorldToCell(raw);
+            for (int up = 0; colliderTilemap.HasTile(cell) && up < 4; up++)
+                cell.y += 1;
+            if (colliderTilemap.HasTile(cell))
+            {
+                Debug.LogWarning($"[DoorPass] door at {raw} is buried in the collider tilemap — left at authored spot");
+                return raw;
+            }
+            int down = 0;
+            while (!colliderTilemap.HasTile(cell + Vector3Int.down) && down++ < 12)
+                cell.y -= 1;
+            if (!colliderTilemap.HasTile(cell + Vector3Int.down))
+            {
+                Debug.LogWarning($"[DoorPass] no floor within 12 tiles below {raw} — door left at authored spot");
+                return raw;
+            }
+            float surfaceY = colliderTilemap.layoutGrid.CellToWorld(cell).y;
+            Vector3 grounded = new Vector3(raw.x, surfaceY + 1f, 0f);
+            if (Mathf.Abs(grounded.y - raw.y) > 0.01f)
+                Debug.Log($"[DoorPass] grounded door {raw} -> {grounded}");
+            return grounded;
+        }
+
+        /// <summary>
+        /// Playtest 6 (P0): the only door-like visuals left standing must be
+        /// the two ExitDoors. Idempotently hides the dead legacy exit props —
+        /// "Dragon"-tagged portals plus the hand-authored "Door"/"Portal"/
+        /// "Arch" prop clusters (L2/L3 carry a "Door" holder with the old
+        /// portals and a decorative pack crystal; the Crystal prefab has no
+        /// scripts, so nothing functional is lost). Logs every object it
+        /// touches so the batchmode log proves the sweep.
+        /// </summary>
+        static void HideLegacyExitProps()
+        {
+            int hidden = 0, already = 0;
+            foreach (Transform t in Object.FindObjectsOfType<Transform>(true))
+            {
+                GameObject go = t.gameObject;
+                if (!go.scene.IsValid() || go.name.StartsWith(GenPrefix))
+                    continue;
+                // Never touch the real doors (or anything holding one).
+                if (go.GetComponentInChildren<ExitDoor>(true) != null)
+                    continue;
+                bool dragon = go.CompareTag("Dragon");
+                string n = go.name;
+                bool doorProp = n == "Door" || n.StartsWith("Door (") ||
+                                n.StartsWith("Portal") || n.StartsWith("Arch");
+                if (!dragon && !doorProp)
+                    continue;
+                if (go.activeSelf)
+                {
+                    go.SetActive(false);
+                    hidden++;
+                    Debug.Log($"[LegacyDoorCleanup] hid {(dragon ? "Dragon portal" : "dead door prop")} '{n}' at {t.position}");
+                }
+                else
+                {
+                    already++;
+                }
+            }
+            Debug.Log($"[LegacyDoorCleanup] {hidden} hidden this run, {already} already hidden — ExitDoors are the only door visuals left");
         }
 
         /// <summary>
@@ -297,8 +387,20 @@ namespace Escape.EditorAutomation
 
             var renderer = door.AddComponent<SpriteRenderer>();
             Sprite closed = FirstSprite(sheet, baseName + "_closed_0");
-            renderer.sprite = closed;
-            renderer.sortingOrder = 1;   // above tiles, below pickups (2)
+            // Serialize the hero-COLOURED half-lit frame as the resting
+            // sprite: ExitDoor pulses these dimmed at runtime anyway, and the
+            // colourless sealed arch would show in edit-mode captures and the
+            // first rendered frame (it read as scenery — playtest 6).
+            renderer.sprite = FirstSprite(sheet, baseName + "_half_0") ?? closed;
+            renderer.sortingLayerName = "Default";
+            renderer.sortingOrder = DoorSortingOrder;   // above terrain art (0), below pickups (2)
+            // Hero-hue tint: the closed arch frame is near-colourless, so
+            // without this the resting door reads as scenery. The lit/open
+            // frames carry strong hero colour already — the mild multiply
+            // shifts them imperceptibly.
+            renderer.color = heroNumber == 1
+                ? new Color(1f, 0.80f, 0.68f)     // EMBER: warm red-amber cast
+                : new Color(0.66f, 0.86f, 1f);    // WISP: cool blue cast
 
             // 16x32 @ 16 PPU is exactly 1x2 tiles at scale 1 — normalize
             // anyway in case the art resolution changes again.
@@ -320,6 +422,24 @@ namespace Escape.EditorAutomation
             exit.fps = 6f;
             if (closed == null)
                 Debug.LogWarning($"[LevelBuilder] {baseName} sprites missing — door frames stay empty until the sheet imports");
+
+            // Hero-colored glow ON the door: the closed frames are dark,
+            // near-colorless arches (playtest 6: they read as background
+            // decoration). A warm/cool Light2D makes each doorway read as
+            // EMBER's or WISP's. Lives as a child so both the legacy and
+            // generated paths carry it and it dies with the door on rebuild.
+            // (Replaces BuildLighting's old exit lights, which used authored
+            // TILE coords — meaningless world positions in legacy scenes.)
+            var glowObj = new GameObject("DoorGlow");
+            glowObj.transform.SetParent(door.transform, false);
+            glowObj.transform.localPosition = new Vector3(0f, 0.25f, 0f);
+            var glow = glowObj.AddComponent<Light2D>();
+            glow.lightType = Light2D.LightType.Point;
+            glow.color = heroNumber == 1 ? new Color(1f, 0.55f, 0.3f) : new Color(0.3f, 0.7f, 1f);
+            glow.intensity = 1.1f;
+            glow.pointLightOuterRadius = 3.5f;
+
+            Debug.Log($"[DoorPass] {name} hero {heroNumber} at {pos} (layer Default, order {DoorSortingOrder}, {(heroNumber == 1 ? "ember" : "wisp")} glow)");
             return door;
         }
 
@@ -362,14 +482,66 @@ namespace Escape.EditorAutomation
         {
             // The RuleTile's rules resolve solid interiors to its empty
             // default (no collision, dark visual) — paint with the concrete
-            // Grotto tiles instead, like the hand-built levels do:
-            // grass-top where exposed above, speckled interior elsewhere.
+            // Grotto tiles instead, like the hand-built levels do.
+            // Playtest 6: single top tile + single fill tile read monotonous,
+            // so paint the full blue terrain family (indices verified against
+            // grotto-tiles.png edge-brightness): 24/25/26/27 = lit-top row
+            // (24 left cap, 26 crystal variant, 27 right cap); 32/35 = lit
+            // left/right side fills; 0/1/2/3 = lit-bottom ceiling row for
+            // platform undersides (0 left, 3 right); 9 plain interior with
+            // 10 (chevron), 11/34 (speckle), 33 (crystal) variants scattered
+            // by a deterministic cell-coordinate hash — NO randomness.
             const string tilesetFolder = "Assets/GrottoEscapeArtwork/Sprites/Tileset";
-            var topTile = AssetDatabase.LoadAssetAtPath<TileBase>($"{tilesetFolder}/grotto-tiles_25.asset");
-            var fillTile = AssetDatabase.LoadAssetAtPath<TileBase>($"{tilesetFolder}/grotto-tiles_33.asset");
+            TileBase T(int i) { return AssetDatabase.LoadAssetAtPath<TileBase>($"{tilesetFolder}/grotto-tiles_{i}.asset"); }
+            var topTile = T(25);
+            var fillTile = T(33);
             if (topTile == null || fillTile == null)
                 Debug.LogError("[LevelBuilder] grotto tile assets missing");
             var ruleTile = fillTile;
+
+            TileBase topLeftCap = T(24), topCrystal = T(26), topRightCap = T(27);
+            TileBase sideLeft = T(32), sideRight = T(35);
+            TileBase ceilLeft = T(0), ceilA = T(1), ceilB = T(2), ceilRight = T(3);
+            TileBase fillPlain = T(9), fillChevron = T(10), fillSpeck = T(11), fillSpeck2 = T(34);
+            bool familyOk = topTile != null && fillTile != null &&
+                topLeftCap != null && topCrystal != null && topRightCap != null &&
+                sideLeft != null && sideRight != null &&
+                ceilLeft != null && ceilA != null && ceilB != null && ceilRight != null &&
+                fillPlain != null && fillChevron != null && fillSpeck != null && fillSpeck2 != null;
+            if (!familyOk)
+                Debug.LogError("[PlatformArt] terrain tile family incomplete — falling back to flat 25/33 painting");
+
+            TileBase PickTerrainTile(int cx, int cy)
+            {
+                bool solidUp = def.TileAt(cx, cy + 1) == '#';
+                if (!familyOk)
+                    return solidUp ? fillTile : topTile;
+                bool solidL = def.TileAt(cx - 1, cy) == '#';
+                bool solidR = def.TileAt(cx + 1, cy) == '#';
+                // y == 0 is bedrock: the world floor is never a "ceiling".
+                bool solidDown = cy == 0 || def.TileAt(cx, cy - 1) == '#';
+                if (!solidUp)
+                {
+                    if (!solidL && solidR) return topLeftCap;
+                    if (solidL && !solidR) return topRightCap;
+                    if (!solidL && !solidR) return topTile;                        // 1-wide pillar
+                    return CellHash(cx, cy) % 7 == 0 ? topCrystal : topTile;       // highlight top row
+                }
+                if (!solidDown)
+                {
+                    if (!solidL && solidR) return ceilLeft;
+                    if (solidL && !solidR) return ceilRight;
+                    return CellHash(cx, cy) % 2 == 0 ? ceilA : ceilB;              // platform underside
+                }
+                if (!solidL) return sideLeft;
+                if (!solidR) return sideRight;
+                int roll = CellHash(cx, cy) % 100;                                  // interior scatter
+                if (roll < 6) return fillChevron;
+                if (roll < 14) return fillSpeck;
+                if (roll < 22) return fillSpeck2;
+                if (roll < 26) return fillTile;                                     // rare crystal
+                return fillPlain;
+            }
 
             GameObject gridObj = new GameObject(GenPrefix + "Grid", typeof(Grid));
 
@@ -403,11 +575,7 @@ namespace Escape.EditorAutomation
                 {
                     char c = x < width ? def.TileAt(x, y) : '.';
                     if (c == '#')
-                    {
-                        bool exposedAbove = def.TileAt(x, y + 1) != '#';
-                        ground.SetTile(new Vector3Int(x, y, 0),
-                            exposedAbove ? topTile : fillTile);
-                    }
+                        ground.SetTile(new Vector3Int(x, y, 0), PickTerrainTile(x, y));
                     else if (c == 'D' && ruleTile != null)
                         deco.SetTile(new Vector3Int(x, y, 0), ruleTile);
 
@@ -437,6 +605,151 @@ namespace Escape.EditorAutomation
                 vol.transform.position = new Vector3(run.x0 + w / 2f, run.y + 0.4f, 0);
                 box.size = new Vector2(w, 0.8f);
             }
+
+            BuildGeneratedProps(def);
+        }
+
+        /// <summary>
+        /// Deterministic cell hash for tile-variant / prop scatter. Pure
+        /// function of the coordinates so every rebuild paints identically.
+        /// </summary>
+        static int CellHash(int x, int y)
+        {
+            unchecked
+            {
+                int h = x * 73856093 ^ y * 19349663;
+                h ^= h >> 13;
+                h *= 83492791;
+                h ^= h >> 7;
+                return h & 0x7fffffff;
+            }
+        }
+
+        static readonly string[] DecorPropSprites =
+            { "crystal-01", "crystal-02", "crystal-03", "crystal-04" };
+
+        /// <summary>
+        /// Sparse non-colliding Grotto props on standable surfaces of the
+        /// generated levels (hash-gated ~7% of eligible cells; never within
+        /// 2 tiles of a door or spawn so gameplay landmarks stay clean).
+        /// </summary>
+        static void BuildGeneratedProps(LevelDefinition def)
+        {
+            GameObject holder = new GameObject(GenPrefix + "Props");
+            var keepClear = new List<Vector2Int>
+                { def.exit1, def.exit2, def.player1Spawn, def.player2Spawn };
+            // The real doorways may sit lower than the authored exit tiles
+            // (DoorWorld drops them to the floor) — keep those cells clear too.
+            foreach (Vector2Int exit in new[] { def.exit1, def.exit2 })
+                keepClear.Add(new Vector2Int(exit.x, Mathf.RoundToInt(DoorWorld(def, exit).y - 1f)));
+            int placed = 0;
+            for (int x = 0; x < def.GridWidth; x++)
+                for (int y = 0; y + 1 < def.GridHeight; y++)
+                {
+                    if (def.TileAt(x, y) != '#' || def.TileAt(x, y + 1) != '.' ||
+                        def.TileAt(x, y + 2) == '#')
+                        continue;
+                    if (CellHash(x * 5 + 3, y * 7 + 1) % 100 >= 7)
+                        continue;
+                    int px = x, py = y;
+                    if (keepClear.Any(k => Mathf.Abs(k.x - px) <= 2 && Mathf.Abs(k.y - (py + 1)) <= 2))
+                        continue;
+                    Sprite sprite = FindGrottoSprite(DecorPropSprites[CellHash(x, y) % DecorPropSprites.Length]);
+                    if (sprite == null)
+                        continue;
+                    PlaceDecorProp(holder, new Vector3(x + 0.5f, y + 1f, 0f), sprite, $"{GenPrefix}Prop_{x}_{y}");
+                    placed++;
+                }
+            Debug.Log($"[PlatformArt] L{def.levelNumber}: {placed} decorative props (non-colliding, Default order {DoorSortingOrder})");
+        }
+
+        /// <summary>
+        /// One decorative prop with its feet on the given floor point.
+        /// Behind gameplay: order sits below pickups; doors share the order
+        /// but props are excluded from doorway cells, so they never overlap.
+        /// No collider — purely visual.
+        /// </summary>
+        static void PlaceDecorProp(GameObject holder, Vector3 floorAt, Sprite sprite, string name)
+        {
+            var obj = new GameObject(name);
+            obj.transform.SetParent(holder.transform, false);
+            var sr = obj.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.sortingLayerName = "Default";
+            sr.sortingOrder = DoorSortingOrder;
+            float spriteH = sprite.bounds.size.y;
+            float scale = spriteH > 0.001f ? 0.55f / spriteH : 1f;
+            obj.transform.localScale = new Vector3(scale, scale, 1f);
+            obj.transform.position = floorAt + new Vector3(0f, 0.275f, 0f);
+        }
+
+        /// <summary>
+        /// Legacy L1-3 visual dressing. HARD RULE: the collider tilemap is
+        /// geometry and must stay byte-identical — every addition goes on a
+        /// separate GEN_ object layer, and a used-cell hash of the collider
+        /// tilemap is recorded before/after and errors on any mismatch.
+        /// </summary>
+        static void DecorateLegacyLevel(LevelDefinition def)
+        {
+            Tilemap colliderTilemap = FindColliderTilemap();
+            if (colliderTilemap == null || colliderTilemap.GetComponent<TilemapCollider2D>() == null)
+            {
+                Debug.LogError($"[LegacyDecor] L{def.levelNumber}: collider tilemap not found — decor skipped");
+                return;
+            }
+            long before = ColliderTilemapHash(colliderTilemap);
+
+            var doorSpots = Object.FindObjectsOfType<ExitDoor>()
+                .Select(d => d.transform.position).ToList();
+            GameObject holder = new GameObject(GenPrefix + "LegacyDecor");
+            colliderTilemap.CompressBounds();
+            BoundsInt b = colliderTilemap.cellBounds;
+            int placed = 0;
+            for (int x = b.xMin; x < b.xMax && placed < 30; x++)
+                for (int y = b.yMin + 1; y < b.yMax - 1; y++)
+                {
+                    var cell = new Vector3Int(x, y, 0);
+                    if (colliderTilemap.HasTile(cell) ||
+                        colliderTilemap.HasTile(cell + Vector3Int.up) ||
+                        !colliderTilemap.HasTile(cell + Vector3Int.down))
+                        continue;
+                    if (CellHash(x * 5 + 3, y * 7 + 1) % 100 >= 5)
+                        continue;
+                    Vector3 at = colliderTilemap.layoutGrid.CellToWorld(cell) + new Vector3(0.5f, 0f, 0f);
+                    if (doorSpots.Any(d => Mathf.Abs(d.x - at.x) < 2.5f && Mathf.Abs(d.y - at.y) < 2.5f))
+                        continue;
+                    Sprite sprite = FindGrottoSprite(DecorPropSprites[CellHash(x, y) % DecorPropSprites.Length]);
+                    if (sprite == null)
+                        continue;
+                    PlaceDecorProp(holder, at, sprite, $"{GenPrefix}Decor_{x}_{y}");
+                    placed++;
+                }
+
+            long after = ColliderTilemapHash(colliderTilemap);
+            if (before != after)
+                Debug.LogError($"[LegacyDecor] L{def.levelNumber}: COLLIDER TILEMAP CHANGED " +
+                               $"(hash {before:X16} -> {after:X16}) — geometry rule violated!");
+            else
+                Debug.Log($"[LegacyDecor] L{def.levelNumber}: {placed} props on separate non-collider layer; " +
+                          $"collider tilemap hash {before:X16} unchanged");
+        }
+
+        /// <summary>Order-stable hash of every used cell (position + tile
+        /// asset name) in the tilemap — the byte-identical guard for legacy
+        /// collider geometry.</summary>
+        internal static long ColliderTilemapHash(Tilemap map)
+        {
+            long h = 17;
+            foreach (Vector3Int p in map.cellBounds.allPositionsWithin)
+            {
+                TileBase tile = map.GetTile(p);
+                if (tile == null)
+                    continue;
+                h = h * 31 + p.x;
+                h = h * 31 + p.y;
+                h = h * 31 + (tile.name != null ? tile.name.GetHashCode() : 0);
+            }
+            return h;
         }
 
         static Tilemap NewTilemap(GameObject grid, string name)
@@ -878,7 +1191,7 @@ namespace Escape.EditorAutomation
             obj.transform.position = pos;
             var renderer = obj.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
-            renderer.sortingOrder = 2;
+            renderer.sortingOrder = PickupSortingOrder;
             // Grotto item sprites are 16px @100 PPU (0.16 world units) — scale
             // them up so pickups read at ~1 tile like everything else.
             if (sprite != null && sprite.bounds.size.y > 0.001f)
@@ -1000,9 +1313,11 @@ namespace Escape.EditorAutomation
 
             foreach (Vector2Int c in def.crystals)
                 PointLight(holder, World(c), new Color(0.3f, 0.9f, 0.9f), 3f, 0.8f);
-            // Hero-matched door glow (EMBER warm / WISP cool).
-            PointLight(holder, World(def.exit1), new Color(1f, 0.55f, 0.3f), 4f, 1f);
-            PointLight(holder, World(def.exit2), new Color(0.3f, 0.7f, 1f), 4f, 1f);
+            // Door glow now lives ON each ExitDoor (see PlaceExitDoor). The
+            // old World(def.exit1/2) lights here floated at authored TILE
+            // coords — mid-air nonsense in legacy scenes (whose defs are
+            // normalized to a different origin) and above the doorway in
+            // generated ones (DoorWorld drops doors to the floor).
             foreach (Vector2Int p in def.checkpoints)
                 PointLight(holder, World(p) + Vector3.up, new Color(1f, 0.7f, 0.3f), 3f, 0.9f);
         }

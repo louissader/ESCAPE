@@ -98,64 +98,196 @@ namespace Escape.EditorAutomation
             }
         }
 
+        // Hero mapping READ from the pickup scripts, not assumed:
+        //   PowerUpOne.cs  → PlayerCharacterOne.EnableShooting()  → EMBER (P1) → powerup_ember
+        //   PowerUpTwo.cs  → PlayerCharacterTwo.CollectPowerUp()  → WISP  (P2) → powerup_wisp
+        const string PowerUp1Prefab = "Assets/GrottoEscapeArtwork/Prefabs/Misc/PowerUpOne.prefab";
+        const string PowerUp2Prefab = "Assets/GrottoEscapeArtwork/Prefabs/Misc/PowerUpTwo.prefab";
+        const string EmberOrbSheet = "Assets/Art/Generated/Props/powerup_ember.png";
+        const string WispOrbSheet = "Assets/Art/Generated/Props/powerup_wisp.png";
+        const float OrbWorldHeight = 2f;   // exactly 2 tiles, playtest 6
+        const float OrbFps = 5f;
+
+        /// <summary>Kept so MasterPipeline's existing wiring keeps working.</summary>
         [MenuItem("Escape/Playtest Fixes/Recolor Powerups")]
         public static void RecolorPowerups()
         {
-            // Swap the old grotto icon for the purpose-built glowing orbs:
-            // blue WISP orb for P2's transform, red EMBER orb for P1's shoot.
-            SwapPowerupSprite("Assets/GrottoEscapeArtwork/Prefabs/Misc/PowerUpTwo.prefab",
-                "Assets/Art/Generated/Props/powerup_wisp.png", "powerup_wisp_pulse_0");
-            SwapPowerupSprite("Assets/GrottoEscapeArtwork/Prefabs/Misc/PowerUpOne.prefab",
-                "Assets/Art/Generated/Props/powerup_ember.png", "powerup_ember_pulse_0");
+            FixPowerupVisuals();
         }
 
-        static void SwapPowerupSprite(string prefabPath, string sheet, string frame)
+        /// <summary>
+        /// Playtest 6 P0. The round-5 prefab patch never showed at runtime:
+        /// both powerup prefabs still carry the ENABLED legacy Grotto Animator
+        /// (power-up-01.controller → PowerUpAnimation.anim) whose clip rewrites
+        /// m_Sprite every frame from the old 16px @100PPU Grotto icons. The
+        /// animation update runs after script Update, so it wins over both the
+        /// serialized sprite AND SpriteCycler — every scene instance rendered
+        /// the tiny old icon. This pass removes that Animator and re-normalizes
+        /// sprite/cycler/scale/trigger on the PREFABS (PowerUpOne.prefab is a
+        /// VARIANT of PowerUpTwo.prefab, so the base is fixed first) and on
+        /// EVERY component instance in every level scene. Idempotent: absolute
+        /// target values only, never multiplied onto existing state.
+        /// Pipeline ordering: must run AFTER LevelBuilder.BuildAllLevels —
+        /// that pass re-instantiates generated-level powerups at 1.8 tiles.
+        /// </summary>
+        [MenuItem("Escape/Playtest Fixes/Fix Powerup Visuals")]
+        public static void FixPowerupVisuals()
         {
-            Sprite sprite = AssetDatabase.LoadAllAssetsAtPath(sheet)
-                .OfType<Sprite>().FirstOrDefault(s => s.name == frame);
-            if (sprite == null)
+            // Base prefab first: removing the legacy Animator from the base
+            // clears it from the variant too.
+            FixPowerupPrefab(PowerUp2Prefab);
+            FixPowerupPrefab(PowerUp1Prefab);
+
+            for (int level = 1; level <= SceneRouter.LevelCount; level++)
             {
-                Debug.LogWarning($"[PlaytestFixes] powerup sprite {frame} missing — kept old icon");
+                string path = $"Assets/Scenes/{SceneRouter.LevelSceneName(level)}.unity";
+                if (!System.IO.File.Exists(path))
+                {
+                    Debug.LogError($"[PowerupFix] scene missing: {path}");
+                    continue;
+                }
+                var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+                int touched = 0;
+                foreach (var p1 in Object.FindObjectsOfType<PowerUpOne>(true))
+                    touched += FixPowerupObject(p1.gameObject, EmberOrbSheet, scene.name) ? 1 : 0;
+                foreach (var p2 in Object.FindObjectsOfType<PowerUpTwo>(true))
+                    touched += FixPowerupObject(p2.gameObject, WispOrbSheet, scene.name) ? 1 : 0;
+                if (touched > 0)
+                    EditorSceneManager.SaveScene(scene);
+                Debug.Log($"[PowerupFix] {scene.name}: {touched} powerup instance(s) processed");
+            }
+            AssetDatabase.SaveAssets();
+            Debug.Log("[PowerupFix] complete (prefabs + all level scenes)");
+        }
+
+        static void FixPowerupPrefab(string path)
+        {
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(path) == null)
+            {
+                Debug.LogError($"[PowerupFix] prefab missing: {path}");
                 return;
             }
-            GameObject root = PrefabUtility.LoadPrefabContents(prefabPath);
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
             try
             {
-                var sr = root.GetComponentInChildren<SpriteRenderer>();
-                if (sr != null)
+                bool ember = root.GetComponentInChildren<PowerUpOne>(true) != null;
+                bool wisp = root.GetComponentInChildren<PowerUpTwo>(true) != null;
+                if (ember == wisp)   // both or neither — hero can't be inferred
                 {
-                    sr.sprite = sprite;
-                    sr.color = Color.white;
-                    // 1.8 tiles (playtest 5: 1.4 still read small). Derived
-                    // from the sprite bounds, NOT a fixed multiplier — the
-                    // orbs were regenerated at 32px, so a hardcoded scale
-                    // would have doubled their world size.
-                    const float targetHeight = 1.8f;
-                    float spriteHeight = sprite.bounds.size.y;
-                    root.transform.localScale = Vector3.one *
-                        (spriteHeight > 0.001f ? targetHeight / spriteHeight : 1f);
-
-                    // Animate the pulse — all 4 frames were generated but
-                    // only frame 0 was ever shown. 5 fps: calmer throb.
-                    var frames = AssetDatabase.LoadAllAssetsAtPath(sheet)
-                        .OfType<Sprite>().OrderBy(f => f.name).ToArray();
-                    if (frames.Length > 1)
-                    {
-                        var cycler = sr.gameObject.GetComponent<SpriteCycler>();
-                        if (cycler == null)
-                            cycler = sr.gameObject.AddComponent<SpriteCycler>();
-                        cycler.frames = frames;
-                        cycler.fps = 5f;
-                    }
-
-                    PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
-                    Debug.Log($"[PlaytestFixes] powerup orb ({targetHeight} tiles, pulsing) → {prefabPath}");
+                    Debug.LogError($"[PowerupFix] {path}: PowerUpOne={ember} PowerUpTwo={wisp} — skipped");
+                    return;
                 }
+                if (FixPowerupObject(root, ember ? EmberOrbSheet : WispOrbSheet, "prefab:" + path))
+                    PrefabUtility.SaveAsPrefabAsset(root, path);
             }
             finally
             {
                 PrefabUtility.UnloadPrefabContents(root);
             }
+        }
+
+        /// <summary>
+        /// Normalizes one powerup object (prefab contents or scene instance):
+        /// kills the sprite-clobbering legacy Animator, assigns the 4 pulse
+        /// frames by EXPLICIT sheet-prefixed name (missing frame ⇒ null sprite
+        /// + error, never an unsliced whole-sheet fallback), wires SpriteCycler
+        /// at 5 fps, sets an ABSOLUTE scale for exactly 2.0 tiles of world
+        /// height, and sizes the pickup trigger to the orb (the Grotto-era box
+        /// was 0.09 local units — authored for the old 0.16-unit icon).
+        /// Returns true when the object was modified (caller saves).
+        /// </summary>
+        static bool FixPowerupObject(GameObject go, string sheet, string context)
+        {
+            if (go.GetComponentInChildren<PowerUpOne>(true) != null &&
+                go.GetComponentInChildren<PowerUpTwo>(true) != null)
+            {
+                Debug.LogError($"[PowerupFix] {context}: {go.name} has BOTH pickup scripts — skipped");
+                return false;
+            }
+            var sr = go.GetComponentInChildren<SpriteRenderer>(true);
+            if (sr == null)
+            {
+                Debug.LogError($"[PowerupFix] {context}: {go.name} has no SpriteRenderer — skipped");
+                return false;
+            }
+
+            // The legacy Animator is THE reason the round-5 fix never showed.
+            foreach (var animator in go.GetComponentsInChildren<Animator>(true))
+            {
+                try { Object.DestroyImmediate(animator); }
+                catch (System.InvalidOperationException) { /* prefab-instance component — fall through */ }
+                if (animator == null)
+                {
+                    Debug.Log($"[PowerupFix] {context}: {go.name} legacy Animator removed");
+                }
+                else
+                {
+                    animator.enabled = false;   // couldn't destroy here (prefab-instance component)
+                    EditorUtility.SetDirty(animator);
+                    Debug.LogWarning($"[PowerupFix] {context}: {go.name} Animator could not be destroyed — disabled instead");
+                }
+            }
+
+            string baseName = System.IO.Path.GetFileNameWithoutExtension(sheet);
+            Sprite[] all = AssetDatabase.LoadAllAssetsAtPath(sheet).OfType<Sprite>().ToArray();
+            var frames = new Sprite[4];
+            bool missing = false;
+            for (int i = 0; i < frames.Length; i++)
+            {
+                string frameName = $"{baseName}_pulse_{i}";   // slicer prefixes the sheet name
+                frames[i] = all.FirstOrDefault(s => s.name == frameName);
+                if (frames[i] == null)
+                {
+                    missing = true;
+                    Debug.LogError($"[PowerupFix] {context}: frame '{frameName}' missing from {sheet} " +
+                                   $"(sheet has: {string.Join(", ", all.Select(s => s.name))})");
+                }
+            }
+            if (missing)
+            {
+                // Never show a whole/unsliced sheet for a multi-frame asset —
+                // and don't let a stale cycler re-assign old frames at runtime.
+                sr.sprite = null;
+                var staleCycler = sr.GetComponent<SpriteCycler>();
+                if (staleCycler != null)
+                    staleCycler.frames = new Sprite[0];
+                Debug.LogError($"[PowerupFix] {context}: {go.name} sprite set to NULL until {baseName} slices correctly");
+                EditorUtility.SetDirty(go);
+                return true;
+            }
+
+            sr.sprite = frames[0];
+            sr.color = Color.white;
+
+            var cycler = sr.GetComponent<SpriteCycler>();
+            if (cycler == null)
+                cycler = sr.gameObject.AddComponent<SpriteCycler>();
+            cycler.frames = frames;
+            cycler.fps = OrbFps;
+
+            // ABSOLUTE scale from sprite bounds (never multiply existing
+            // scale): re-runs and stale scales from earlier passes converge on
+            // the same value regardless of the sheet's pixel size or PPU.
+            float spriteH = frames[0].bounds.size.y;
+            float parentH = go.transform.parent != null ? Mathf.Abs(go.transform.parent.lossyScale.y) : 1f;
+            if (parentH < 1e-4f)
+                parentH = 1f;
+            float scale = spriteH > 0.001f ? OrbWorldHeight / (spriteH * parentH) : 1f;
+            go.transform.localScale = new Vector3(scale, scale, 1f);
+
+            var box = go.GetComponentInChildren<BoxCollider2D>(true);
+            if (box != null)
+            {
+                box.isTrigger = true;
+                box.size = frames[0].bounds.size;   // local units at scale 1
+                box.offset = Vector2.zero;
+            }
+
+            float worldH = frames[0].bounds.size.y * Mathf.Abs(go.transform.lossyScale.y);
+            Debug.Log($"[PowerupFix] {context}: {go.name} sprite={frames[0].name} frames=4 fps={OrbFps} " +
+                      $"worldHeight={worldH:F2} trigger={(box != null ? box.size.ToString("F2") : "none")}");
+            EditorUtility.SetDirty(go);
+            return true;
         }
 
         /// <summary>

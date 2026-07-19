@@ -1,0 +1,22 @@
+{
+  "frameWidth": 64,
+  "frameHeight": 20,
+  "frames": [
+    {
+      "name": "glow_0",
+      "index": 0
+    },
+    {
+      "name": "glow_1",
+      "index": 1
+    },
+    {
+      "name": "glow_2",
+      "index": 2
+    },
+    {
+      "name": "glow_3",
+      "index": 3
+    }
+  ]
+}

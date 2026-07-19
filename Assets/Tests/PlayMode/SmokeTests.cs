@@ -72,17 +72,29 @@ public class SmokeTests
     [UnityTest]
     public IEnumerator SwapMode_HandsControlToSurvivor_WhenP1Removed()
     {
-        yield return LoadLevel(1);
-        VirtualInputRouter.ResetForLevel();
-        Assert.AreEqual(1, VirtualInputRouter.ActivePlayerId);
+        // Swap-mode contract, so opt in explicitly: desktop/editor Auto now
+        // resolves to Coop — this test passing WITHOUT the opt-in was the
+        // Playtest-6 movement bug (phone misdetection forcing Swap).
+        SaveSystem.ControlModeSetting previous = SaveSystem.ControlMode;
+        SaveSystem.ControlMode = SaveSystem.ControlModeSetting.Swap;
+        try
+        {
+            yield return LoadLevel(1);
+            VirtualInputRouter.ResetForLevel();
+            Assert.AreEqual(1, VirtualInputRouter.ActivePlayerId);
 
-        // Simulate exit absorption: P1 deactivates; controller must auto-swap.
-        PlayerCharacterOne.Get(1).gameObject.SetActive(false);
-        yield return null;
-        yield return null;
+            // Simulate removal: P1 deactivates; controller must auto-swap.
+            PlayerCharacterOne.Get(1).gameObject.SetActive(false);
+            yield return null;
+            yield return null;
 
-        Assert.AreEqual(2, VirtualInputRouter.ActivePlayerId,
-            "auto-swap must hand control to Player2 when Player1 is absorbed");
+            Assert.AreEqual(2, VirtualInputRouter.ActivePlayerId,
+                "auto-swap must hand control to Player2 when Player1 is absorbed");
+        }
+        finally
+        {
+            SaveSystem.ControlMode = previous;
+        }
     }
 
     [UnityTest]

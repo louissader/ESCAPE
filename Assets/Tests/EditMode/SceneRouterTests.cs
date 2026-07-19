@@ -32,4 +32,13 @@ public class SceneRouterTests
         // SceneRouter.LoadIntro loads by this constant, so they must agree.
         Assert.AreEqual("Intro", SceneRouter.IntroScene);
     }
+
+    [Test]
+    public void IntroScene_ExistsInBuildSettings()
+    {
+        // TitleMenu.OnPlay / OnStory both route through SceneRouter.LoadIntro
+        // — a build without the Intro scene would dead-end the PLAY button
+        // on first launch.
+        Assert.Contains(SceneRouter.IntroScene, BuildSceneNames());
+    }
 }

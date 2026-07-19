@@ -1,6 +1,6 @@
 {
-  "frameWidth": 480,
-  "frameHeight": 270,
+  "frameWidth": 960,
+  "frameHeight": 540,
   "frames": [
     {
       "name": "plate_0",

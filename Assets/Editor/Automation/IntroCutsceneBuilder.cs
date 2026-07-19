@@ -1,6 +1,5 @@
 using System.Linq;
 using UnityEditor;
-using UnityEditor.Events;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -12,9 +11,15 @@ namespace Escape.EditorAutomation
     /// <summary>
     /// Builds Assets/Scenes/Intro.unity for the first-launch story beats
     /// (IntroCutscene owns the runtime behavior — this pass only assembles
-    /// the canvas it documents in its header) and adds the STORY replay
-    /// button to the main menu. Idempotent: the IntroUI root is rebuilt by
-    /// name on every run; camera/EventSystem/menu button are find-or-create.
+    /// the canvas it documents in its header), including the hidden
+    /// post-cutscene controls explainer (HowToPlayBuilder's reference card
+    /// + a LET'S GO button) that IntroCutscene opens before Level 1 on
+    /// first run. Playtest 6: the plate aspect-FILLs via AspectRatioFitter
+    /// (960x540 native plates), and per-beat overlay roots under the plate
+    /// carry star twinkles / dust motes wired to IntroCutscene. The menu-side STORY entry now lives in the title screen's
+    /// submenu — TitleScreenBuilder owns the Menu Scene, this builder never
+    /// touches it. Idempotent: the IntroUI root is rebuilt by name on every
+    /// run; camera/EventSystem are find-or-create.
     /// </summary>
     public static class IntroCutsceneBuilder
     {
@@ -39,14 +44,22 @@ namespace Escape.EditorAutomation
             "Assets/Art/Generated/Backgrounds/cutscene_resolve.png",
         };
 
+        // Plates are native 960x540 (16:9), drawn in a 240x135 composition
+        // space — overlay positions below use those composition coords.
+        const float PlateAspect = 960f / 540f;
+        const float CompW = 240f, CompH = 135f;
+        const string StarSheet = "Assets/Art/Generated/Props/star.png";
+        // Smooth Bilinear-imported mote (NOT the 8px pixel-art FX dust_puff,
+        // which would read as blocks scaled over the anti-aliased plates).
+        const string DustSheet = "Assets/Art/Generated/Backgrounds/cutscene_dust.png";
+
         [MenuItem("Escape/Build Intro Cutscene")]
         public static void Run()
         {
             BuildIntroScene();
             EnsureInBuildSettings();
-            AddStoryButtonToMainMenu();
             AssetDatabase.SaveAssets();
-            Debug.Log("[IntroCutsceneBuilder] Intro scene + STORY button built");
+            Debug.Log("[IntroCutsceneBuilder] Intro scene built");
         }
 
         static void BuildIntroScene()
@@ -87,6 +100,16 @@ namespace Escape.EditorAutomation
             Stretch((RectTransform)plate.transform);
             plate.preserveAspect = true;   // IntroCutscene re-asserts in Awake
             plate.raycastTarget = false;
+            // Aspect-FILL like the title backdrop: the 960x540 plates keep
+            // their 16:9 ratio and crop at other device ratios instead of
+            // letterboxing (preserveAspect stays a no-op — rect ratio ==
+            // sprite ratio). Backdrop black only shows during crossfades.
+            AspectRatioFitter plateFitter = plate.gameObject.AddComponent<AspectRatioFitter>();
+            plateFitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            plateFitter.aspectRatio = PlateAspect;
+
+            RectTransform[] overlayRoots = BuildBeatOverlays(
+                (RectTransform)plate.transform, out RectTransform[] motes);
 
             RectTransform captionSafe = NewRect("CaptionSafeArea", root.transform);
             Stretch(captionSafe);
@@ -117,6 +140,16 @@ namespace Escape.EditorAutomation
             skipSafe.gameObject.AddComponent<SafeAreaFitter>();
             Button skip = MakeButton(skipSafe, "Btn_Skip", "SKIP");
 
+            // First-run controls explainer, last under the root so it draws
+            // above everything (incl. skip). Same card HowToPlayBuilder
+            // generates — but here closing must lead ONWARD, so the GOT IT
+            // close button becomes a big LET'S GO that starts Level 1.
+            HowToPlayPanel explainer = HowToPlayBuilder.BuildPanel((RectTransform)root.transform);
+            Transform gotIt = explainer.transform.Find("Btn_Close");
+            if (gotIt != null)
+                Object.DestroyImmediate(gotIt.gameObject);
+            Button letsGo = MakeLetsGoButton((RectTransform)explainer.transform);
+
             IntroCutscene cutscene = root.AddComponent<IntroCutscene>();
             cutscene.plateImage = plate;
             cutscene.caption = caption;
@@ -124,12 +157,135 @@ namespace Escape.EditorAutomation
             cutscene.plates = PlateSheets.Select(LoadPlate).ToArray();
             cutscene.captions = (string[])Captions.Clone();
             cutscene.skipButton = skip;         // Awake hooks onClick — no persistent call needed
+            cutscene.postCutscenePanel = explainer;
+            cutscene.letsGoButton = letsGo;     // Awake hooks onClick, like skip
+            cutscene.beatOverlayRoots = overlayRoots;
+            cutscene.dustMotes = motes;
             if (cutscene.plates.Any(p => p == null))
                 Debug.LogWarning("[IntroCutsceneBuilder] cutscene plate sprite(s) missing " +
                                  "— rerun after the art imports");
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log($"[IntroCutsceneBuilder] saved {ScenePath}");
+        }
+
+        // ---------- per-beat overlays (Playtest 6) ----------
+
+        /// <summary>
+        /// One overlay root per beat, children of the plate so they ride the
+        /// Ken-Burns drift (IntroCutscene shows exactly one root per beat):
+        /// twinkling star glints inside the cave mouth (entrance), drifting
+        /// dust motes on the rubble (collapse, drifted by IntroCutscene via
+        /// the returned `motes`), twinkles riding the painted swarm (stars).
+        /// The resolve beat's root stays empty — pure darkness is the shot.
+        /// Positions are backgrounds.py composition coords (240x135).
+        /// </summary>
+        static RectTransform[] BuildBeatOverlays(RectTransform plate, out RectTransform[] motes)
+        {
+            Sprite[] twinkle = TitleScreenBuilder.LoadFrames(StarSheet, "star_twinkle_", 4);
+            // Backgrounds import Single, so this falls back to the whole asset.
+            Sprite dust = TitleScreenBuilder.LoadSprite(DustSheet, "cutscene_dust_dust_0");
+            if (twinkle.Length == 0)
+                Debug.LogWarning("[IntroCutsceneBuilder] star_twinkle frames missing — " +
+                                 "star overlays skipped; rerun after the art imports");
+            if (dust == null)
+                Debug.LogWarning("[IntroCutsceneBuilder] cutscene_dust sprite missing — " +
+                                 "dust overlay skipped; rerun after the art imports");
+
+            var roots = new RectTransform[PlateSheets.Length];
+            for (int i = 0; i < roots.Length; i++)
+            {
+                roots[i] = NewRect($"BeatOverlay_{i}", plate);
+                Stretch(roots[i]);
+                roots[i].gameObject.SetActive(false);   // IntroCutscene activates per beat
+            }
+
+            // Beat 0 — entrance: gold glints deep in the cave-mouth dark.
+            AddTwinkle(roots[0], 0, 117f, 103f, 46f, twinkle, 5f, 3.1f);
+            AddTwinkle(roots[0], 1, 128f, 108f, 38f, twinkle, 4f, 2.4f);
+            AddTwinkle(roots[0], 2, 133f, 114f, 30f, twinkle, 6f, 3.6f);
+            AddTwinkle(roots[0], 3, 110f, 111f, 30f, twinkle, 4.5f, 2.8f);
+            AddTwinkle(roots[0], 4, 122f, 117f, 34f, twinkle, 5.5f, 2.0f);
+
+            // Beat 1 — collapse: dust rolling off the rubble pile + the last
+            // sliver of light. IntroCutscene drifts these (slow Lissajous).
+            var dustList = new System.Collections.Generic.List<RectTransform>(6);
+            dustList.Add(AddDust(roots[1], 0, 86f, 119f, 110f, dust));
+            dustList.Add(AddDust(roots[1], 1, 154f, 116f, 120f, dust));
+            dustList.Add(AddDust(roots[1], 2, 118f, 124f, 130f, dust));
+            dustList.Add(AddDust(roots[1], 3, 99f, 97f, 80f, dust));
+            dustList.Add(AddDust(roots[1], 4, 141f, 95f, 85f, dust));
+            dustList.Add(AddDust(roots[1], 5, 120f, 86f, 70f, dust));
+            motes = dustList.ToArray();
+
+            // Beat 2 — star scatter: twinkles riding the painted big stars
+            // (star centers = backgrounds.py cell origins + 8).
+            AddTwinkle(roots[2], 0, 56f, 28f, 96f, twinkle, 5f, 2.2f);
+            AddTwinkle(roots[2], 1, 104f, 46f, 88f, twinkle, 6f, 3.0f);
+            AddTwinkle(roots[2], 2, 150f, 32f, 96f, twinkle, 4.5f, 2.6f);
+            AddTwinkle(roots[2], 3, 84f, 76f, 84f, twinkle, 5.5f, 3.4f);
+            AddTwinkle(roots[2], 4, 130f, 82f, 88f, twinkle, 4f, 2.0f);
+            AddTwinkle(roots[2], 5, 174f, 64f, 80f, twinkle, 6.5f, 2.9f);
+
+            Debug.Log("[IntroCutsceneBuilder] beat overlays built: " +
+                      "5 entrance twinkles, 6 collapse dust motes, 6 star-swarm twinkles");
+            return roots;
+        }
+
+        /// <summary>Child pinned at plate-composition coords via FRACTIONAL
+        /// anchors, so it stays glued to the artwork at any device ratio
+        /// (the plate rect always shares the art's 16:9 ratio).</summary>
+        static RectTransform PlateChild(string name, RectTransform parent,
+                                        float cx, float cy, float size)
+        {
+            RectTransform rect = NewRect(name, parent);
+            Vector2 anchor = new Vector2(cx / CompW, 1f - cy / CompH);
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(size, size);
+            return rect;
+        }
+
+        /// <summary>Twinkling star glint: star_twinkle frame cycle + gentle
+        /// scale pulse via UIPulse (the title screen's TitleStar idiom),
+        /// desynced per star through fps/speed.</summary>
+        static void AddTwinkle(RectTransform root, int i, float cx, float cy, float size,
+                               Sprite[] twinkle, float fps, float speed)
+        {
+            Image img = PlateChild($"Star_{i}", root, cx, cy, size)
+                .gameObject.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.preserveAspect = true;
+            if (twinkle.Length == 0)
+            {
+                img.gameObject.SetActive(false);
+                return;
+            }
+            img.sprite = twinkle[0];
+            UIPulse pulse = img.gameObject.AddComponent<UIPulse>();
+            pulse.glowFrames = twinkle;
+            pulse.fps = fps;
+            pulse.scaleAmplitude = 0.12f;
+            pulse.speed = speed;
+        }
+
+        /// <summary>Soft warm dust mote (tinted cutscene_dust, low alpha) —
+        /// the drift itself lives in IntroCutscene.UpdateDustMotes.</summary>
+        static RectTransform AddDust(RectTransform root, int i, float cx, float cy,
+                                     float size, Sprite dust)
+        {
+            Image img = PlateChild($"Dust_{i}", root, cx, cy, size)
+                .gameObject.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.preserveAspect = true;
+            img.color = new Color(0.62f, 0.53f, 0.44f, 0.38f);   // rolling dust
+            if (dust != null)
+                img.sprite = dust;
+            else
+                img.gameObject.SetActive(false);   // no white-square fallback
+            return (RectTransform)img.transform;
         }
 
         static void EnsureCamera()
@@ -169,60 +325,50 @@ namespace Escape.EditorAutomation
         }
 
         /// <summary>
-        /// STORY button under PLAY on the main menu: rewatches the intro via
-        /// MainMenu.OnStoryButton (sets IntroCutscene.ReplayMode so no
-        /// progress is written and the end returns to the menu).
+        /// Big pulsing LET'S GO! at the explainer card's foot (the GOT IT
+        /// slot, 0/-420): btn_play glow frames + UIPulse, same styling as
+        /// the title screen's PLAY. No persistent onClick — IntroCutscene
+        /// hooks letsGoButton in Awake, like skip.
         /// </summary>
-        static void AddStoryButtonToMainMenu()
+        static Button MakeLetsGoButton(RectTransform parent)
         {
-            var scene = EditorSceneManager.OpenScene("Assets/Scenes/Menu Scene.unity", OpenSceneMode.Single);
-            Canvas canvas = Object.FindObjectOfType<Canvas>();
-            MainMenu mainMenu = Object.FindObjectOfType<MainMenu>();
-            if (canvas == null || mainMenu == null)
-            {
-                Debug.LogError("[IntroCutsceneBuilder] Menu Scene canvas/MainMenu missing — STORY button skipped");
-                return;
-            }
+            Sprite[] glow = TitleScreenBuilder.LoadFrames(
+                TitleScreenBuilder.BtnPlaySheet, "btn_play_glow_", 4);
 
-            // Between PLAY (0,-40) and QUIT (0,-170), matching their 160x30 style.
-            Button story = FindOrCreateMenuButton((RectTransform)canvas.transform,
-                "StoryButton", "STORY", new Vector2(0, -85));
-            for (int i = story.onClick.GetPersistentEventCount() - 1; i >= 0; i--)
-                UnityEventTools.RemovePersistentListener(story.onClick, i);
-            UnityEventTools.AddPersistentListener(story.onClick, mainMenu.OnStoryButton);
-
-            EditorSceneManager.SaveScene(scene);
-            Debug.Log("[IntroCutsceneBuilder] STORY button wired in Menu Scene");
-        }
-
-        /// <summary>Small menu-style button (find-or-create by name).</summary>
-        internal static Button FindOrCreateMenuButton(RectTransform canvas, string name,
-                                                      string label, Vector2 anchoredPos)
-        {
-            GameObject existing = GameObject.Find(name);
-            if (existing != null && existing.TryGetComponent(out Button existingButton))
-            {
-                ((RectTransform)existing.transform).anchoredPosition = anchoredPos;
-                return existingButton;
-            }
-
-            Image img = NewRect(name, canvas).gameObject.AddComponent<Image>();
+            Image img = NewRect("Btn_LetsGo", parent).gameObject.AddComponent<Image>();
             RectTransform rect = (RectTransform)img.transform;
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = anchoredPos;
-            rect.sizeDelta = new Vector2(160, 30);
-            img.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
-            img.type = Image.Type.Sliced;
+            rect.anchoredPosition = new Vector2(0, -420);
+            rect.sizeDelta = new Vector2(512, 160);
+            if (glow.Length > 0)
+            {
+                img.sprite = glow[0];
+            }
+            else
+            {
+                img.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+                img.type = Image.Type.Sliced;
+                img.color = new Color(0.13f, 0.35f, 0.46f, 0.95f);
+                Debug.LogWarning("[IntroCutsceneBuilder] btn_play sprites missing — " +
+                                 "rerun after the art imports");
+            }
             Button button = img.gameObject.AddComponent<Button>();
+
+            UIPulse pulse = img.gameObject.AddComponent<UIPulse>();
+            pulse.glowFrames = glow;
+            pulse.fps = 6f;
+            pulse.scaleAmplitude = 0.04f;
+            pulse.speed = 2f;
 
             TextMeshProUGUI text = NewRect("Label", rect).gameObject.AddComponent<TextMeshProUGUI>();
             Stretch((RectTransform)text.transform);
-            text.text = label;
-            text.fontSize = 16;
+            text.text = "LET'S GO!";
+            text.fontSize = 56;
+            text.fontStyle = FontStyles.Bold;
             text.alignment = TextAlignmentOptions.Center;
-            text.color = new Color(0.1f, 0.1f, 0.15f, 1f);
+            text.color = new Color(1f, 0.965f, 0.878f);   // #fff6e0
             text.raycastTarget = false;
             return button;
         }

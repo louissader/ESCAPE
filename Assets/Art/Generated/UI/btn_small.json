@@ -1,0 +1,10 @@
+{
+  "frameWidth": 48,
+  "frameHeight": 16,
+  "frames": [
+    {
+      "name": "pill_0",
+      "index": 0
+    }
+  ]
+}

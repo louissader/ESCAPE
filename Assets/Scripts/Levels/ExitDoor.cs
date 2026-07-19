@@ -69,6 +69,8 @@ public class ExitDoor : MonoBehaviour
         get { return doorTrigger != null ? doorTrigger.bounds.center : transform.position; }
     }
 
+    Color baseColor = Color.white;
+
     void Awake()
     {
         sprite = GetComponent<SpriteRenderer>();
@@ -82,6 +84,7 @@ public class ExitDoor : MonoBehaviour
         // clears the registry after Awake but before Start).
         if (!doors.Contains(this))
             doors.Add(this);
+        baseColor = sprite != null ? sprite.color : Color.white;   // hero tint from the builder
         SetState(VisualState.Closed);
     }
 
@@ -226,8 +229,16 @@ public class ExitDoor : MonoBehaviour
         frameIndex = 0;
         frameTimer = 0f;
         Sprite[] frames = FramesFor(next);
-        if (sprite != null && frames != null && frames.Length > 0)
+        if (sprite == null)
+            return;
+        if (frames != null && frames.Length > 0)
             sprite.sprite = frames[0];
+        // Idle doors run the hero-coloured pulse DIMMED (the dark closed
+        // frame read as scenery — playtest 6); the hero arriving brings it
+        // to full brightness.
+        sprite.color = next == VisualState.Closed
+            ? new Color(baseColor.r * 0.62f, baseColor.g * 0.62f, baseColor.b * 0.62f, baseColor.a)
+            : baseColor;
     }
 
     void Animate()
@@ -256,7 +267,12 @@ public class ExitDoor : MonoBehaviour
         {
             case VisualState.HalfLit: return halfLitFrames;
             case VisualState.Open: return openFrames;
-            default: return closedFrames;
+            default:
+                // Idle: pulse the hero-coloured frames (dimmed via SetState)
+                // so the door visibly IS ember-red / wisp-blue from afar;
+                // the colourless sealed arch is only a fallback.
+                return halfLitFrames != null && halfLitFrames.Length > 0
+                    ? halfLitFrames : closedFrames;
         }
     }
 }

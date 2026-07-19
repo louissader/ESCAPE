@@ -32,11 +32,15 @@ EXPECTED = {
         "lava", "bridge", "lever", "crystal_slab", "exit_portal", "checkpoint_torch",
         "door_ember", "door_wisp", "star", "star_empty", "powerup_ember", "powerup_wisp",
     ],
-    "UI": ["dpad_left", "dpad_right", "dpad_down", "btn_a", "btn_b", "btn_swap", "btn_pause"],
+    "UI": [
+        "dpad_left", "dpad_right", "dpad_down", "btn_a", "btn_b", "btn_swap", "btn_pause",
+        "btn_play", "btn_small",
+    ],
     "Backgrounds": [
         "grotto_far", "grotto_mid", "grotto_near",
         "depths_far", "depths_mid", "depths_near",
         "cutscene_entrance", "cutscene_collapse", "cutscene_stars", "cutscene_resolve",
+        "cutscene_dust", "title_bg",
     ],
     "FX": ["dust_puff", "spark", "impact_ring", "death_poof", "death_poof_strip", "lava_bubble"],
     "Icons": ["app_icon_1024", "playstore_512", "adaptive_foreground_432", "adaptive_background_432"],
@@ -49,6 +53,18 @@ FRAME_COUNTS = {
     "exit_portal": 4, "checkpoint_torch": 6, "death_poof_strip": 4,
     "door_ember": 7, "door_wisp": 7,   # closed_0 half_0 half_1 open_0..open_3
     "star": 4, "star_empty": 1, "powerup_ember": 4, "powerup_wisp": 4,
+    "title_bg": 1, "cutscene_dust": 1, "btn_play": 4, "btn_small": 1,
+}
+
+# Backgrounds ship at fixed sizes: scrolling layers at 2x-NEAREST 640x360,
+# cutscene plates + title backdrop at NATIVE 960x540 (no pixel upscale).
+BACKGROUND_SIZES = {
+    "grotto_far": (640, 360), "grotto_mid": (640, 360), "grotto_near": (640, 360),
+    "depths_far": (640, 360), "depths_mid": (640, 360), "depths_near": (640, 360),
+    "cutscene_entrance": (960, 540), "cutscene_collapse": (960, 540),
+    "cutscene_stars": (960, 540), "cutscene_resolve": (960, 540),
+    "title_bg": (960, 540),
+    "cutscene_dust": (128, 128),   # smooth overlay mote, not a plate
 }
 
 
@@ -74,6 +90,11 @@ def check_files():
             want = FRAME_COUNTS.get(n)
             if want is not None and frames != want:
                 print(f"  BAD FRAME COUNT: {cat}/{n}: {frames} != {want}")
+                ok = False
+            size = BACKGROUND_SIZES.get(n)
+            if size is not None and (img.shape[1], img.shape[0]) != size:
+                print(f"  BAD SIZE: {cat}/{n}: {img.shape[1]}x{img.shape[0]} != "
+                      f"{size[0]}x{size[1]}")
                 ok = False
     print(f"[verify] files + manifests: {'OK' if ok else 'FAIL'}")
     return ok
@@ -106,8 +127,8 @@ def check_hero_palettes():
 def check_backgrounds_tileable():
     ok = True
     for n in EXPECTED["Backgrounds"]:
-        if n.startswith("cutscene_"):
-            continue  # story plates are full-bleed illustrations, not scrolling layers
+        if n.startswith("cutscene_") or n == "title_bg":
+            continue  # full-bleed plates (story + title backdrop), not scrolling layers
         img = load_png(os.path.join(OUT_ROOT, "Backgrounds", f"{n}.png")).astype(np.int32)
         cols = img.reshape(img.shape[0], img.shape[1], 4)
         diffs = np.abs(cols[:, 1:] - cols[:, :-1]).mean(axis=(0, 2))

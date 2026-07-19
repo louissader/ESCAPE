@@ -27,12 +27,19 @@ namespace Escape.EditorAutomation
             failed += Step("ExtractExistingLevels", LevelExtractor.ExtractExistingLevels);
             failed += Step("CreateLevelDefinitions", LevelLibrary.CreateAll);
             failed += Step("BuildAllLevels", LevelBuilder.BuildAllLevels);
+            // Powerup pass must FOLLOW level building: BuildAllLevels re-instantiates
+            // generated-level pickups (and legacy scenes are re-saved by the augment pass).
+            failed += Step("FixPowerupVisuals", PlaytestFixes.FixPowerupVisuals);
             failed += Step("RebuildLevelSelect", LevelMenuBuilder.Run);
             // After BuildGameplayUIPrefab (which rebuilds that prefab from
             // scratch) and after BuildAllLevels (whose GEN_ sweep clears the
             // Level-1 easing objects).
             failed += Step("BuildIntroCutscene", IntroCutsceneBuilder.Run);
             failed += Step("BuildHowToPlayPanels", HowToPlayBuilder.Run);
+            // Title screen LAST of the menu passes: HowToPlayBuilder rebuilds
+            // the menu panel object TitleMenu points at, so the wiring must
+            // happen after it (running it earlier would leave a dead ref).
+            failed += Step("BuildTitleScreen", TitleScreenBuilder.Run);
             failed += Step("EaseLevelOne", PlaytestFixes.EaseLevelOne);
 
             AssetDatabase.SaveAssets();
@@ -49,18 +56,23 @@ namespace Escape.EditorAutomation
             // Sprites first (doors, 6-frame lava, 32px orbs, cutscene plates).
             failed += Step("SliceGeneratedSprites", SliceGeneratedSprites.Run);
             failed += Step("PlayerPhysics+Speed", PlaytestFixes.FixPlayerPhysics);
-            failed += Step("RecolorPowerups", PlaytestFixes.RecolorPowerups);
             failed += Step("PrefabVisualOverhaul", PrefabVisualOverhaul.Run);
             failed += Step("BuildGameplayUIPrefab", HUDBuilder.BuildGameplayUIPrefab);
             failed += Step("BuildTouchControlsPrefab", TouchControlsBuilder.BuildTouchControlsPrefab);
-            // Intro scene + STORY button; the how-to-play pass must follow
-            // BuildGameplayUIPrefab — that step rebuilds the prefab from
-            // scratch and would drop the panel.
+            // Intro scene (incl. post-cutscene explainer); the how-to-play
+            // pass must follow BuildGameplayUIPrefab — that step rebuilds the
+            // prefab from scratch and would drop the panel. Title screen
+            // follows how-to-play: it wires TitleMenu at the menu panel that
+            // pass just rebuilt.
             failed += Step("BuildIntroCutscene", IntroCutsceneBuilder.Run);
             failed += Step("BuildHowToPlayPanels", HowToPlayBuilder.Run);
+            failed += Step("BuildTitleScreen", TitleScreenBuilder.Run);
             // Doors + animated lava wire up inside BuildAllLevels (generated
             // + legacy augment paths), followed by the solvability gate.
             failed += Step("BuildAllLevels", LevelBuilder.BuildAllLevels);
+            // Powerup pass must FOLLOW level building: BuildAllLevels re-instantiates
+            // generated-level pickups (and legacy scenes are re-saved by the augment pass).
+            failed += Step("FixPowerupVisuals", PlaytestFixes.FixPowerupVisuals);
             failed += Step("StripLegacyUI", PlaytestFixes.StripLegacyUI);
             // After BuildAllLevels: its GEN_ sweep clears the easing objects.
             failed += Step("EaseLevelOne", PlaytestFixes.EaseLevelOne);

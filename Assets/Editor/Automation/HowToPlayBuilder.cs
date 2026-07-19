@@ -10,9 +10,14 @@ namespace Escape.EditorAutomation
     /// <summary>
     /// Builds the HOW TO PLAY reference card (HowToPlayPanel) on both the
     /// main menu canvas and the pause canvas inside GameplayUI.prefab, plus
-    /// the buttons that open it. MUST run after HUDBuilder in any pipeline —
-    /// BuildGameplayUIPrefab rebuilds that prefab from scratch and drops the
-    /// panel. Idempotent: panel/button objects are rebuilt by name.
+    /// the pause-menu button that opens it. The MAIN MENU no longer gets an
+    /// open button — the title screen's submenu owns that entry
+    /// (TitleScreenBuilder), so this pass only rebuilds the panel there and
+    /// re-wires TitleMenu.howToPlayPanel at the fresh instance. MUST run
+    /// after HUDBuilder and before TitleScreenBuilder in any pipeline —
+    /// BuildGameplayUIPrefab rebuilds its prefab from scratch and drops the
+    /// panel, and TitleScreenBuilder wires the panel this pass creates.
+    /// Idempotent: panel/button objects are rebuilt by name.
     ///
     /// The key lines print the ACTUAL bindings: PlayerControlsOne hardcodes
     /// EMBER to the arrow keys (jump = Up) + Space; Player2.prefab serializes
@@ -86,23 +91,35 @@ namespace Escape.EditorAutomation
 
             HowToPlayPanel panel = BuildPanel((RectTransform)canvas.transform);
 
-            // Below STORY (0,-85); PLAY/QUIT sit at -40/-170 in the menu's 160x30 style.
-            Button open = IntroCutsceneBuilder.FindOrCreateMenuButton((RectTransform)canvas.transform,
-                "HowToPlayButton", "HOW TO PLAY", new Vector2(0, -130));
-            for (int i = open.onClick.GetPersistentEventCount() - 1; i >= 0; i--)
-                UnityEventTools.RemovePersistentListener(open.onClick, i);
-            UnityEventTools.AddPersistentListener(open.onClick, panel.Open);
+            // The title screen's submenu owns the HOW TO PLAY entry now —
+            // clear the legacy standalone menu button if it still exists.
+            Transform oldButton = canvas.transform.Find("HowToPlayButton");
+            if (oldButton != null)
+                Object.DestroyImmediate(oldButton.gameObject);
+
+            // BuildPanel destroyed any previous panel instance, which nulls
+            // TitleMenu's reference — re-wire so a standalone rerun of this
+            // pass never fights TitleScreenBuilder.
+            TitleMenu titleMenu = Object.FindObjectOfType<TitleMenu>();
+            if (titleMenu != null)
+            {
+                titleMenu.howToPlayPanel = panel;
+                panel.transform.SetAsLastSibling();   // draws above the submenu
+                EditorUtility.SetDirty(titleMenu);
+            }
 
             EditorSceneManager.SaveScene(scene);
-            Debug.Log("[HowToPlayBuilder] panel + button added to Menu Scene");
+            Debug.Log("[HowToPlayBuilder] panel rebuilt in Menu Scene (open button lives in the title submenu)");
         }
 
         /// <summary>
         /// One reference card, rebuilt by name under the given canvas rect.
         /// Starts inactive: HowToPlayPanel.Open is the entry point (its
         /// wiring is lazy, and fades run on unscaled time for the pause menu).
+        /// Shared: TitleScreenBuilder (missing-panel fallback) and
+        /// IntroCutsceneBuilder (post-cutscene explainer) reuse this.
         /// </summary>
-        static HowToPlayPanel BuildPanel(RectTransform parent)
+        internal static HowToPlayPanel BuildPanel(RectTransform parent)
         {
             Transform old = parent.Find("HowToPlayPanel");
             if (old != null)

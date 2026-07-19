@@ -70,6 +70,9 @@ namespace Escape.EditorAutomation
                 Button p2Tap = p2Portrait.gameObject.AddComponent<Button>();
                 UnityEventTools.AddPersistentListener(p2Tap.onClick, hud.OnPortrait2Tapped);
 
+                // Persistent objective line (Playtest 6 P1), under the bars.
+                BuildObjectiveBanner(hudRect);
+
                 // ---------- Pause overlay ----------
                 RectTransform overlay = NewRect("PauseOverlay", safeArea);
                 Stretch(overlay);
@@ -206,6 +209,99 @@ namespace Escape.EditorAutomation
                 Object.DestroyImmediate(root);
             }
             AssetDatabase.SaveAssets();
+        }
+
+        // ---------- objective banner (Playtest 6 P1) ----------
+
+        const string BannerName = "GEN_ObjectiveBanner";
+
+        /// <summary>
+        /// Find-or-create the persistent objective banner inside the existing
+        /// GameplayUI prefab without a full rebuild. Idempotent: an existing
+        /// GEN_ObjectiveBanner is rebuilt in place, never duplicated. Builds
+        /// the whole prefab first if it does not exist yet (the fresh build
+        /// already includes the banner).
+        /// </summary>
+        [MenuItem("Escape/Add Objective Banner To GameplayUI")]
+        public static void AddObjectiveBanner()
+        {
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath) == null)
+            {
+                Debug.Log("[HUDBuilder] GameplayUI prefab missing; full build (banner included)");
+                BuildGameplayUIPrefab();
+                return;
+            }
+
+            GameObject root = PrefabUtility.LoadPrefabContents(PrefabPath);
+            try
+            {
+                Transform hud = root.transform.Find("SafeArea/HUD");
+                if (hud == null)
+                {
+                    Debug.LogError("[HUDBuilder] SafeArea/HUD missing in GameplayUI prefab; banner NOT added");
+                    return;
+                }
+                BuildObjectiveBanner((RectTransform)hud);
+                PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+                Debug.Log($"[HUDBuilder] Objective banner saved into {PrefabPath}");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+            AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>
+        /// Top-center pill under the health bars. Vertical placement is the
+        /// overlap guarantee: bars end at y -88, pause at -136, portraits at
+        /// -152 (all pivot-top), so a banner whose top edge is -160 clears
+        /// every cluster at ANY aspect ratio - including 4:3, where the P2
+        /// cluster's left edge (canvas ~1663 wide, cluster start 919) comes
+        /// within ~90 units of screen center and a bar-height banner WOULD
+        /// collide. btn_small_pill_0 is not used: the slicer writes no
+        /// 9-slice border (48x16 frame, plain Simple stretch on the title
+        /// screen) and smears at banner width, so this uses the HUD's own
+        /// pill recipe - builtin UISprite, Sliced, stone tint (btn_small
+        /// palette) at 85% opacity.
+        /// </summary>
+        static void BuildObjectiveBanner(RectTransform hudRect)
+        {
+            Transform existing = hudRect.Find(BannerName);
+            if (existing != null)
+            {
+                Object.DestroyImmediate(existing.gameObject);
+                Debug.Log($"[HUDBuilder] existing {BannerName} found - rebuilding in place");
+            }
+
+            Image pill = NewRect(BannerName, hudRect).gameObject.AddComponent<Image>();
+            Place((RectTransform)pill.transform, new Vector2(0.5f, 1f),
+                new Vector2(0, -160), new Vector2(760, 64));
+            pill.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            pill.type = Image.Type.Sliced;
+            pill.color = new Color(0.23f, 0.20f, 0.26f, 0.85f); // btn_small stone
+            pill.raycastTarget = false;
+
+            CanvasGroup group = pill.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 1f;              // ObjectiveBanner.Awake zeroes it for the fade-in
+            group.interactable = false;
+            group.blocksRaycasts = false;  // must never eat portrait/pause taps
+
+            TextMeshProUGUI text = MakeLabel((RectTransform)pill.transform, "Label",
+                ObjectiveBanner.LineFor(0), 30, new Vector2(0.5f, 0.5f), Vector2.zero);
+            RectTransform textRect = (RectTransform)text.transform;
+            Stretch(textRect);
+            textRect.offsetMin = new Vector2(28, 6);
+            textRect.offsetMax = new Vector2(-28, -6);
+            text.enableAutoSizing = true;  // longest line must fit the pill
+            text.fontSizeMin = 18;
+            text.fontSizeMax = 32;
+            text.color = new Color(0.93f, 0.90f, 0.85f, 1f);
+
+            ObjectiveBanner banner = pill.gameObject.AddComponent<ObjectiveBanner>();
+            SetPrivate(banner, "label", text);
+            SetPrivate(banner, "group", group);
+            Debug.Log($"[HUDBuilder] {BannerName} created: top-center pill 760x64 at y -160, fade wired");
         }
 
         [MenuItem("Escape/Add GameplayUI To Level Scenes")]

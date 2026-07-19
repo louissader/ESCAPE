@@ -647,6 +647,91 @@ def gen_ui_buttons():
         save_single(img, name, out_path("UI", f"{name}.png"))
 
 
+# ------------------------------------------------------------------ title-menu buttons
+
+def _pill_dist(px, py, x0, x1, cy):
+    """Distance from pixel center to the capsule spine [(x0,cy)..(x1,cy)]."""
+    x = min(max(px + 0.5, x0), x1)
+    return math.hypot(px + 0.5 - x, py + 0.5 - cy)
+
+
+def _pill(w, h, x0, x1, cy, r, fill, lit, dark):
+    """Capsule button plate: plain face, lit top rim, shaded bottom rim."""
+    img = blank(w, h)
+    for y in range(h):
+        for x in range(w):
+            d = _pill_dist(x, y, x0, x1, cy)
+            if d <= r:
+                if d > r - 1.3:
+                    img[y, x] = lit if y + 0.5 < cy else dark
+                else:
+                    img[y, x] = fill
+    return img
+
+
+def gen_menu_buttons():
+    """Title-screen pill buttons (menu UI, fully opaque).
+
+    btn_play: 64x20 x4 (glow_0..glow_3) — warm stone pill whose ember-gold
+    rim/underglow breathes dim -> mid -> bright -> mid (loopable). The face
+    stays plain: the PLAY label is TMP text layered on top in Unity, and the
+    sprite is NEAREST-scaled up to a large button.
+    btn_small: 48x16 x1 (pill_0) — same pill language, muted dark stone with
+    a faint wisp-blue rim, for CONTINUE / STORY / HOW TO PLAY / QUIT.
+    """
+    gold = hex_rgba("#f4c05a")
+    ember = hex_rgba("#e07438")
+    gold_dim = hex_rgba("#c98a2e")
+    gold_deep = hex_rgba("#7a4a1e")
+
+    # --- btn_play: 64x20, capsule spine (10,10)-(54,10), radius 7
+    body = hex_rgba("#5a4236")
+    body_dark = hex_rgba("#3c2c26")
+    lit_by_level = {0: hex_rgba("#7c5a40"), 1: ember, 2: gold}
+    levels = [0, 1, 2, 1]  # dim -> mid -> bright -> mid; loops cleanly
+    frames = []
+    for f, lvl in enumerate(levels):
+        img = _pill(64, 20, 10.0, 54.0, 10.0, 7.0, body, lit_by_level[lvl], body_dark)
+        img = outline(img, K)
+        # breathing rim glow + underglow, drawn outside the dark outline
+        for y in range(20):
+            for x in range(64):
+                if img[y, x, 3] != 0:
+                    continue
+                d = _pill_dist(x, y, 10.0, 54.0, 10.0)
+                below = y + 0.5 > 10.0
+                if lvl == 2:
+                    if d <= 8.8:
+                        img[y, x] = gold
+                    elif d <= 9.8 and (x + y) % 2 == 0:
+                        img[y, x] = ember
+                    elif below and d <= 10.4 and (x + y) % 2 == 0:
+                        img[y, x] = gold_dim
+                elif lvl == 1:
+                    if d <= 8.7:
+                        img[y, x] = ember
+                    elif below and d <= 9.6 and (x + y + f) % 2 == 0:
+                        img[y, x] = gold_dim
+                else:
+                    if d <= 8.8 and (x + y) % 2 == 0:
+                        img[y, x] = gold_dim
+                    elif below and d <= 9.3 and (x + y) % 2 == 0:
+                        img[y, x] = gold_deep
+        frames.append(img)
+    save_strip(frames, [f"glow_{i}" for i in range(4)], out_path("UI", "btn_play.png"))
+
+    # --- btn_small: 48x16, capsule spine (9,8)-(39,8), radius 5.5
+    img = _pill(48, 16, 9.0, 39.0, 8.0, 5.5, hex_rgba("#3a3242"), hex_rgba("#514761"), hex_rgba("#282030"))
+    img = outline(img, K)
+    for y in range(16):  # faint wisp-blue dithered rim outside the outline
+        for x in range(48):
+            if img[y, x, 3] == 0 and _pill_dist(x, y, 9.0, 39.0, 8.0) <= 7.3 and (x + y) % 2 == 0:
+                img[y, x] = palette.WISP["primary"]
+    img[2, 12] = palette.WISP["secondary"]  # cool glints on the top rim
+    img[2, 13] = palette.WISP["secondary"]
+    save_single(img, "pill_0", out_path("UI", "btn_small.png"))
+
+
 # ------------------------------------------------------------------ powerup orbs
 
 def _orb_frames(pal, white_hex):
@@ -804,6 +889,7 @@ def generate():
     gen_door("wisp")
     gen_checkpoint_torch()
     gen_ui_buttons()
+    gen_menu_buttons()
     gen_star_coin()
     gen_powerups()
     gen_props_review()

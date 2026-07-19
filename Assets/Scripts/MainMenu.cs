@@ -1,5 +1,12 @@
 using UnityEngine;
 
+/// <summary>
+/// LEGACY — superseded by TitleMenu. TitleScreenBuilder removes this
+/// component (and the buttons that called it) from Menu Scene when it
+/// rebuilds the title screen. Kept compiling unchanged so an unmigrated /
+/// not-yet-rebuilt scene still routes correctly; delete once the redesign
+/// has shipped everywhere.
+/// </summary>
 public class MainMenu : MonoBehaviour
 {
     [SerializeField] private GameObject quitButton;
