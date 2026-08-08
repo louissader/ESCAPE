@@ -70,8 +70,8 @@ MonoBehaviour:
 '
   player1Spawn: {x: 27, y: 4}
   player2Spawn: {x: 25, y: 4}
-  exit1: {x: 2, y: 20}
-  exit2: {x: 4, y: 20}
+  exit1: {x: 31, y: 1}
+  exit2: {x: 33, y: 1}
   enemies:
   - type: 2
     position: {x: 6, y: 21}

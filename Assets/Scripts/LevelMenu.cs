@@ -48,7 +48,21 @@ public class LevelMenu : MonoBehaviour
     }
 
     public void StoryButton() { SceneRouter.LoadStory(); }
-    public void NextContinueButton() { SceneRouter.LoadLore(); }
+
+    /// <summary>CONTINUE on level select: resume progress at the next
+    /// unbeaten level (HighestUnlockedLevel is exactly that — completing
+    /// level n unlocks n+1, and replays never over-unlock). Only once the
+    /// final level is beaten does it lead to the lore ending. It used to
+    /// call LoadLore() unconditionally, which spoiled the ending and, with
+    /// the Main Menu button unreachable and no Escape key on iOS, made
+    /// level select a dead end.</summary>
+    public void NextContinueButton()
+    {
+        if (SaveSystem.IsLevelCompleted(SceneRouter.LevelCount))
+            SceneRouter.LoadLore();
+        else
+            SceneRouter.LoadLevel(SaveSystem.HighestUnlockedLevel);
+    }
     public void LoreRestartButton() { SceneRouter.LoadMainMenu(); }
     public void LevelMenuButton() { SceneRouter.LoadLevelSelect(); }
 }

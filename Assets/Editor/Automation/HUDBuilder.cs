@@ -53,16 +53,23 @@ namespace Escape.EditorAutomation
                     new Vector2(48, -40), "hero1_ember", new Color(0.56f, 0.17f, 0.17f));
                 (Image p1BarFill, _) = MakeBar(hudRect, "P1_HP", new Vector2(0, 1), new Vector2(136, -56));
 
-                // Pause button: extreme top-right corner.
+                // Pause button: extreme top-right corner. 136 units is the
+                // interactive floor: 54.2 pt on a 6.1" iPhone / 47.2 pt on an
+                // SE3, clearing Apple's 44 pt minimum for the ONLY pause
+                // affordance on iOS (the old 96 was 38.2 pt / 33.3 pt).
                 Button pauseButton = MakeTextButton(hudRect, "Btn_Pause", "II",
-                    new Vector2(1, 1), new Vector2(-48, -40), new Vector2(96, 96));
+                    new Vector2(1, 1), new Vector2(-48, -40), new Vector2(136, 136));
                 UnityEventTools.AddPersistentListener(pauseButton.onClick, pause.OnPauseButton);
 
-                // P2 cluster: immediately left of pause.
-                Image p2Glow = MakeGlow(hudRect, "P2_Glow", new Vector2(1, 1), new Vector2(-160, -32));
+                // P2 cluster: immediately left of pause. Shifted 40 left with
+                // the 136-unit pause (whose left edge is now -184, pivot
+                // top-right) so the portrait - a later sibling whose tap-to-
+                // swap Button would win the raycast - never overlaps it;
+                // gaps to pause stay 16 (glow) / 24 (portrait) as before.
+                Image p2Glow = MakeGlow(hudRect, "P2_Glow", new Vector2(1, 1), new Vector2(-200, -32));
                 Image p2Portrait = MakePortrait(hudRect, "P2_Portrait", new Vector2(1, 1),
-                    new Vector2(-168, -40), "hero2_wisp", new Color(0.17f, 0.29f, 0.56f));
-                (Image p2BarFill, _) = MakeBar(hudRect, "P2_HP", new Vector2(1, 1), new Vector2(-464, -56));
+                    new Vector2(-208, -40), "hero2_wisp", new Color(0.17f, 0.29f, 0.56f));
+                (Image p2BarFill, _) = MakeBar(hudRect, "P2_HP", new Vector2(1, 1), new Vector2(-504, -56));
 
                 // Portrait taps swap (inactive portrait only; GameHUD guards).
                 Button p1Tap = p1Portrait.gameObject.AddComponent<Button>();
@@ -254,16 +261,19 @@ namespace Escape.EditorAutomation
 
         /// <summary>
         /// Top-center pill under the health bars. Vertical placement is the
-        /// overlap guarantee: bars end at y -88, pause at -136, portraits at
-        /// -152 (all pivot-top), so a banner whose top edge is -160 clears
-        /// every cluster at ANY aspect ratio - including 4:3, where the P2
-        /// cluster's left edge (canvas ~1663 wide, cluster start 919) comes
-        /// within ~90 units of screen center and a bar-height banner WOULD
-        /// collide. btn_small_pill_0 is not used: the slicer writes no
-        /// 9-slice border (48x16 frame, plain Simple stretch on the title
-        /// screen) and smears at banner width, so this uses the HUD's own
-        /// pill recipe - builtin UISprite, Sliced, stone tint (btn_small
-        /// palette) at 85% opacity.
+        /// overlap guarantee: bars end at y -88 and portraits at -152 (all
+        /// pivot-top), so a banner whose top edge is -160 clears both
+        /// clusters at ANY aspect ratio - including 4:3, where the P2
+        /// cluster's left edge (canvas ~1663 wide, cluster start 879) comes
+        /// within ~48 units of screen center and a bar-height banner WOULD
+        /// collide. The 136-unit pause button ends at y -176, below the
+        /// banner top, but their x-ranges cannot meet: banner right edge
+        /// W/2+380 reaches pause left edge W-184 only when W < 1128, and the
+        /// 4:3 minimum canvas is 1663. btn_small_pill_0 is not used: the
+        /// slicer writes no 9-slice border (48x16 frame, plain Simple
+        /// stretch on the title screen) and smears at banner width, so this
+        /// uses the HUD's own pill recipe - builtin UISprite, Sliced, stone
+        /// tint (btn_small palette) at 85% opacity.
         /// </summary>
         static void BuildObjectiveBanner(RectTransform hudRect)
         {

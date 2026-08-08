@@ -1412,7 +1412,10 @@ namespace Escape.EditorAutomation
             var scenes = new List<EditorBuildSettingsScene>
             {
                 new EditorBuildSettingsScene("Assets/Scenes/Menu Scene.unity", true),
-                new EditorBuildSettingsScene("Assets/Scenes/Story Details.unity", true),
+                // "Story Details" intentionally omitted since build 3 — the
+                // scene is orphaned (keyboard-only copy, no live callers) and
+                // re-adding it here silently reverted its removal from Build
+                // Settings on every level rebuild.
                 new EditorBuildSettingsScene("Assets/Scenes/Level Scene.unity", true),
             };
             // Intro ships once IntroCutsceneBuilder has created it — listing

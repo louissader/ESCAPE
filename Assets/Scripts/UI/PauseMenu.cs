@@ -18,7 +18,10 @@ public class PauseMenu : MonoBehaviour
 
     void OnDestroy()
     {
-        // Never leave a dead scene with frozen time.
+        // Never leave a dead scene with frozen time — and never leave the
+        // (static, scene-surviving) modal guard held by a dead menu.
+        if (IsPaused)
+            ModalGuard.Pop();
         Time.timeScale = 1f;
         IsPaused = false;
     }
@@ -76,6 +79,17 @@ public class PauseMenu : MonoBehaviour
 
     void SetPaused(bool paused)
     {
+        // Edge-triggered guard push/pop: Start() calls SetPaused(false) on
+        // an already-unpaused menu, and the guard is a ref-count — only a
+        // real state change may move it. The settings panel needs no push
+        // of its own: it only ever opens while paused, so this one guard
+        // covers it.
+        bool wasPaused = IsPaused;
+        if (paused && !wasPaused)
+            ModalGuard.Push();
+        else if (!paused && wasPaused)
+            ModalGuard.Pop();
+
         IsPaused = paused;
         Time.timeScale = paused ? 0f : 1f;
         if (overlay != null)

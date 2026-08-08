@@ -69,21 +69,45 @@ namespace Escape.EditorAutomation
                 Stretch(coop);
                 ui.coopLayout = coop.gameObject;
 
+                // A/B anchor to the SAME screen edge as their d-pad, never to
+                // centre: centre-anchored buttons drift toward the d-pad as
+                // the screen narrows, and below aspect 1.3611 (every 4:3
+                // iPad; canvas 1440*sqrt(4/3) = 1663 units wide) the old
+                // centre-anchored P1_A (spanning 831.5-220 .. 831.5-40 =
+                // 611.5..791.5) overlapped P1_DpadRight (440..620) by ~8.5
+                // units in the same y-range. Edge-anchored, the P1<->P2 gap
+                // grows with width instead of shrinking:
+                //   d-pad ends at Margin + 3*DpadSize + 2*DpadGap = 620
+                //   P1_A spans 636..816, so its right edge sits 13.5 units
+                //   left of the divider edge at 4:3 (831.5 - 2 = 829.5) and
+                //   241 units left at 19.5:9 (canvas 2118, divider edge
+                //   1057). P2 mirrors exactly (left edge 847 vs divider edge
+                //   833.5 at 4:3). The layout only re-collides below aspect
+                //   (1636/1440)^2 = 1.29, narrower than any landscape device.
+                // NOTE: those numbers assume Margin 48 / DpadSize 180 /
+                // DpadGap 16. If the constants are ever raised (e.g. the
+                // audit's Margin 96 / gap 32 spacing proposal) the row grows
+                // to 912 units and no longer fits half a 4:3 canvas -
+                // re-verify this arithmetic before changing them.
+                float dpadEnd = Margin + 3f * DpadSize + 2f * DpadGap; // 620
+                float jumpX = dpadEnd + DpadGap;                       // 636
+                float actionX = jumpX + (DpadSize - SmallSize) / 2f;   // 646, B centred over A
+
                 ui.p1Left = DpadButton(coop, "P1_DpadLeft", "<", 0);
                 ui.p1Down = DpadButton(coop, "P1_DpadDown", "v", 1);
                 ui.p1Right = DpadButton(coop, "P1_DpadRight", ">", 2);
                 ui.p1Jump = Button(coop, "P1_A", "A", DpadSize,
-                    new Vector2(0.5f, 0), new Vector2(-40f, Margin), new Vector2(1, 0));
+                    new Vector2(0, 0), new Vector2(jumpX, Margin), new Vector2(0, 0));
                 ui.p1Action = Button(coop, "P1_B", "B", SmallSize,
-                    new Vector2(0.5f, 0), new Vector2(-50f, Margin + DpadSize + DpadGap), new Vector2(1, 0));
+                    new Vector2(0, 0), new Vector2(actionX, Margin + DpadSize + DpadGap), new Vector2(0, 0));
 
                 ui.p2Right = MirroredDpadButton(coop, "P2_DpadRight", ">", 0);
                 ui.p2Down = MirroredDpadButton(coop, "P2_DpadDown", "v", 1);
                 ui.p2Left = MirroredDpadButton(coop, "P2_DpadLeft", "<", 2);
                 ui.p2Jump = Button(coop, "P2_A", "A", DpadSize,
-                    new Vector2(0.5f, 0), new Vector2(40f, Margin), new Vector2(0, 0));
+                    new Vector2(1, 0), new Vector2(-jumpX, Margin), new Vector2(1, 0));
                 ui.p2Action = Button(coop, "P2_B", "B", SmallSize,
-                    new Vector2(0.5f, 0), new Vector2(50f, Margin + DpadSize + DpadGap), new Vector2(0, 0));
+                    new Vector2(1, 0), new Vector2(-actionX, Margin + DpadSize + DpadGap), new Vector2(1, 0));
 
                 // Faint center divider so each player owns a visible half.
                 RectTransform divider = NewRect("Divider", coop);
@@ -189,7 +213,15 @@ namespace Escape.EditorAutomation
             Image image = rect.gameObject.AddComponent<Image>();
             image.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
             image.type = Image.Type.Sliced;
-            image.color = new Color(1f, 1f, 1f, 0.35f);
+            // 0.55 alpha + dark outline for WCAG 1.4.11 (3:1 floor): at the
+            // old 0.35 the buttons measured 1.92:1 over lava/torch terrain,
+            // and 0.55 alone still only reaches ~2.6:1 - the outline supplies
+            // the missing edge contrast without dimming the playfield.
+            image.color = new Color(1f, 1f, 1f, 0.55f);
+            Outline outline = rect.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0.05f, 0.05f, 0.1f, 0.9f);
+            outline.effectDistance = new Vector2(1f, 1f);
+            outline.useGraphicAlpha = false; // rim must stay dark over bright terrain
 
             TouchButton button = rect.gameObject.AddComponent<TouchButton>();
 

@@ -34,10 +34,23 @@ public class TouchControlsUI : MonoBehaviour
     public TouchButton p2Action;
 
     ControlMode mode;
+    CanvasGroup canvasGroup; // added at runtime; the baked prefab has none
 
     void Start()
     {
         mode = ControlModeResolver.Resolve();
+
+        // Stand down while a modal owns the screen. This canvas renders at
+        // sortingOrder 100, above GameplayUI's 90, so without this it eats
+        // every tap aimed at the pause/settings/win/fail buttons (fully
+        // blocking them under the Coop layout on iPad — tapping SETTINGS
+        // fired the shoot button). The CanvasGroup is attached here rather
+        // than baked so the fix works with the already-built prefab.
+        canvasGroup = GetComponent<CanvasGroup>();
+        if (canvasGroup == null)
+            canvasGroup = gameObject.AddComponent<CanvasGroup>();
+        ModalGuard.OnModalChanged += ApplyModalState;
+        ApplyModalState(ModalGuard.IsModalOpen);
 
         if (swapLayout != null)
             swapLayout.SetActive(mode == ControlMode.Swap);
@@ -71,10 +84,33 @@ public class TouchControlsUI : MonoBehaviour
     void OnDestroy()
     {
         SwapModeController.OnSwapped -= OnSwapped;
+        ModalGuard.OnModalChanged -= ApplyModalState;
+    }
+
+    /// <summary>Hides the touch canvas and stops it eating raycasts while
+    /// a modal (pause / settings / win / fail) is open, and releases every
+    /// virtual input on BOTH edges: a tap in the frame the modal opened
+    /// can latch PressJump(), and it must not fire on resume.</summary>
+    void ApplyModalState(bool open)
+    {
+        if (canvasGroup != null)
+        {
+            canvasGroup.alpha = open ? 0f : 1f;
+            canvasGroup.blocksRaycasts = !open;
+            canvasGroup.interactable = !open;
+        }
+        VirtualInputRouter.Get(1).Clear();
+        VirtualInputRouter.Get(2).Clear();
     }
 
     void Update()
     {
+        // While a modal is open the channels were cleared and raycasts are
+        // off — writing holds here would re-latch a button whose finger
+        // never lifted (IsHeld persists through blocksRaycasts = false).
+        if (ModalGuard.IsModalOpen)
+            return;
+
         if (mode == ControlMode.Swap)
         {
             WriteHolds(ActiveChannel(), swapLeft, swapDown, swapRight, swapJump, swapAction);

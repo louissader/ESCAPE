@@ -19,10 +19,14 @@ namespace Escape.EditorAutomation
     /// panel, and TitleScreenBuilder wires the panel this pass creates.
     /// Idempotent: panel/button objects are rebuilt by name.
     ///
-    /// The key lines print the ACTUAL bindings: PlayerControlsOne hardcodes
-    /// EMBER to the arrow keys (jump = Up) + Space; Player2.prefab serializes
-    /// WISP to A/D + W jump + E action. There is no keyboard swap key — swap
-    /// is the touch button or tapping a portrait (GameHUD.OnPortrait*Tapped).
+    /// Copy is TOUCH-FIRST: this builder bakes static text while ControlMode
+    /// (Swap on phones, Coop on tablets) is only resolved at runtime, so the
+    /// card leads with the on-screen controls (arrows / A / B / SWAP / II)
+    /// and keeps the keyboard bindings as parentheticals for desktop/editor.
+    /// Those bindings are the ACTUAL ones: PlayerControlsOne hardcodes EMBER
+    /// to the arrow keys (jump = Up) + Space; Player2.prefab serializes WISP
+    /// to A/D + W jump + E action. There is no keyboard swap key — swap is
+    /// the touch button or tapping a portrait (GameHUD.OnPortrait*Tapped).
     /// </summary>
     public static class HowToPlayBuilder
     {
@@ -136,14 +140,14 @@ namespace Escape.EditorAutomation
 
             MakeLabel(panelRect, "Title", "HOW TO PLAY", 64, new Vector2(0, 420), 1600);
 
-            HeroRow(panelRect, "Ember", "EMBER", EmberColor, 300,
-                "ARROW KEYS move   -   UP jumps (tap again mid-air)   -   SPACE shoots (red orb)");
-            HeroRow(panelRect, "Wisp", "WISP", WispColor, 210,
-                "A / D move   -   W jumps (tap again mid-air)   -   E becomes a platform (blue orb)");
-            HeroRow(panelRect, "Swap", "ONE PLAYER", new Color(1f, 0.9f, 0.4f), 120,
-                "tap the swap button or the other hero's portrait to switch - the waiting hero is safe");
-            HeroRow(panelRect, "Touch", "TOUCH", new Color(0.8f, 0.85f, 0.9f), 30,
-                "on-screen arrows move   -   A jumps   -   B acts   -   II pauses");
+            HeroRow(panelRect, "Basics", "CONTROLS", new Color(0.8f, 0.85f, 0.9f), 300,
+                "on-screen arrows move   -   hold A to jump higher, tap again in mid-air   -   II pauses");
+            HeroRow(panelRect, "Ember", "EMBER", EmberColor, 210,
+                "tap B to shoot a fireball (needs a red orb)   -   keyboard: ARROW KEYS + SPACE");
+            HeroRow(panelRect, "Wisp", "WISP", WispColor, 120,
+                "tap B to become a platform (needs a blue orb)   -   keyboard: A / D + W + E");
+            HeroRow(panelRect, "Swap", "ONE PLAYER", new Color(1f, 0.9f, 0.4f), 30,
+                "tap SWAP or the other hero's portrait to switch - the waiting hero is safe");
             MakeLabel(panelRect, "Goal", "BOTH heroes must stand in their matching doors to escape!",
                 36, new Vector2(0, -70), 1600);
 
@@ -173,7 +177,7 @@ namespace Escape.EditorAutomation
                 new Vector2(-660, y), 320);
             title.color = color;
             title.alignment = TextAlignmentOptions.Left;
-            TextMeshProUGUI desc = MakeLabel(parent, name + "Keys", description, 30,
+            TextMeshProUGUI desc = MakeLabel(parent, name + "Controls", description, 30,
                 new Vector2(180, y), 1280);
             desc.alignment = TextAlignmentOptions.Left;
         }

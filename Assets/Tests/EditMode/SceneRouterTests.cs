@@ -17,7 +17,11 @@ public class SceneRouterTests
     {
         string[] names = BuildSceneNames();
         Assert.Contains(SceneRouter.MainMenu, names);
-        Assert.Contains(SceneRouter.Story, names);
+        // SceneRouter.Story ("Story Details") is deliberately absent: the
+        // scene was removed from Build Settings in build 3 (keyboard-only
+        // copy, zero live callers — TitleMenu.OnStory replays the Intro
+        // instead). LoadStory survives as dead code only because the legacy
+        // MainMenu type is still referenced by TitleScreenBuilder's cleanup.
         Assert.Contains(SceneRouter.LevelSelect, names);
         Assert.Contains(SceneRouter.Lore, names);
         for (int i = 1; i <= SceneRouter.LevelCount; i++)

@@ -40,6 +40,11 @@ public class LevelEndController : MonoBehaviour
     {
         if (Instance == this)
         {
+            // The guard is static and survives scene loads — release it if
+            // the scene dies while a panel is still up (direct scene load
+            // that bypassed a button's Restore()).
+            if (IsShowing)
+                ModalGuard.Pop();
             Instance = null;
             IsShowing = false;
         }
@@ -48,6 +53,8 @@ public class LevelEndController : MonoBehaviour
     public void ShowWin(int level, int crystals, int totalCrystals)
     {
         levelNumber = level;
+        if (!IsShowing)
+            ModalGuard.Push();
         IsShowing = true;
         Time.timeScale = 0f;
         if (AudioManager.Instance != null)
@@ -74,6 +81,8 @@ public class LevelEndController : MonoBehaviour
 
     public void ShowFail()
     {
+        if (!IsShowing)
+            ModalGuard.Push();
         IsShowing = true;
         Time.timeScale = 0f;
         if (AudioManager.Instance != null)
@@ -86,6 +95,8 @@ public class LevelEndController : MonoBehaviour
     // (AudioManager persists across scenes; a leaked duck muted menu music).
     void Restore()
     {
+        if (IsShowing)
+            ModalGuard.Pop();
         IsShowing = false;
         Time.timeScale = 1f;
         if (AudioManager.Instance != null)

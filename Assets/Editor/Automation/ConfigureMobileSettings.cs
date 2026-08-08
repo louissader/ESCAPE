@@ -12,7 +12,7 @@ namespace Escape.EditorAutomation
     public static class ConfigureMobileSettings
     {
         public const string BundleId = "com.louissader.escape";
-        public const string Version = "1.1.0";   // Playtest 5 release (was 1.0.0)
+        public const string Version = "1.1.1";   // Build 3: mobile UX overhaul (was 1.1.0)
 
         [MenuItem("Escape/Configure Mobile Settings")]
         public static void Run()

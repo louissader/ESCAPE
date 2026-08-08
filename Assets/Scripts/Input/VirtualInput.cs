@@ -39,6 +39,10 @@ public class VirtualInputChannel
         return v;
     }
 
+    /// <summary>Releases every held and latched input. Called on swap,
+    /// on level reset, and by TouchControlsUI on BOTH modal edges (open
+    /// and resume) so a stray tap latched while paused can never fire a
+    /// queued jump/action after the modal closes (see ModalGuard).</summary>
     public void Clear()
     {
         move = 0f;
