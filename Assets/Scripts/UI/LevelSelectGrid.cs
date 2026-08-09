@@ -67,6 +67,8 @@ public class LevelSelectGrid : MonoBehaviour
         if (unlocked)
         {
             Button button = tile.AddComponent<Button>();
+            // Touch UI: no focus concept, don't latch the "selected" tint.
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
             int captured = level;
             button.onClick.AddListener(() =>
             {

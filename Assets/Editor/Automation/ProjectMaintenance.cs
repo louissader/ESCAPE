@@ -16,6 +16,64 @@ namespace Escape.EditorAutomation
         }
 
         /// <summary>
+        /// MoreLore is the one hand-made UI scene no builder owns; give its
+        /// canvas the same SafeArea wrapper the built scenes get so the
+        /// ending content clears the notch / home-indicator bands.
+        /// Idempotent (guarded find-or-create, mirrors LevelMenuBuilder).
+        /// </summary>
+        [MenuItem("Escape/Ensure MoreLore Safe Area")]
+        public static void EnsureMoreLoreSafeArea()
+        {
+            var scene = EditorSceneManager.OpenScene("Assets/Scenes/MoreLore.unity");
+            Canvas canvas = Object.FindObjectOfType<Canvas>();
+            if (canvas == null)
+            {
+                Debug.LogError("[ProjectMaintenance] MoreLore has no Canvas");
+                return;
+            }
+
+            Transform canvasT = canvas.transform;
+            Transform safeT = canvasT.Find("SafeArea");
+            if (safeT == null)
+            {
+                var go = new GameObject("SafeArea", typeof(RectTransform));
+                go.transform.SetParent(canvasT, false);
+                safeT = go.transform;
+            }
+            var rect = (RectTransform)safeT;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            if (safeT.GetComponent<SafeAreaFitter>() == null)
+                safeT.gameObject.AddComponent<SafeAreaFitter>();
+
+            // Reparent every other canvas child under the panel, preserving
+            // order (reverse walk + SetAsFirstSibling keeps it stable).
+            int moved = 0;
+            for (int i = canvasT.childCount - 1; i >= 0; i--)
+            {
+                Transform child = canvasT.GetChild(i);
+                if (child == safeT)
+                    continue;
+                child.SetParent(safeT, false);
+                child.SetAsFirstSibling();
+                moved++;
+            }
+
+            // Same touch-UI rule the builders apply: no focus concept, so
+            // taps must not latch the "selected" tint (Continue button).
+            foreach (var sel in canvas.GetComponentsInChildren<UnityEngine.UI.Selectable>(true))
+                sel.navigation = new UnityEngine.UI.Navigation
+                {
+                    mode = UnityEngine.UI.Navigation.Mode.None
+                };
+
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log($"[ProjectMaintenance] MoreLore SafeArea ensured ({moved} child(ren) moved)");
+        }
+
+        /// <summary>
         /// Strips missing-script components left by the Phase 0 dead-code
         /// purge from every prefab and scene (CharacterHoldItem on the player
         /// prefabs, SkeletonBehavior on Skeleton.prefab, etc.).

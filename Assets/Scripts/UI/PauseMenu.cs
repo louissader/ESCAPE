@@ -33,7 +33,15 @@ public class PauseMenu : MonoBehaviour
         // that closed it — Update order between the two is arbitrary).
         if (Input.GetKeyDown(KeyCode.Escape) &&
             !HowToPlayPanel.IsOpen && !HowToPlayPanel.ClosedThisFrame)
-            Toggle();
+        {
+            // Back closes the settings sub-panel first; only the next
+            // press unpauses. Otherwise back while in Settings dumps the
+            // player straight into live gameplay.
+            if (IsPaused && settingsPanel != null && settingsPanel.activeSelf)
+                settingsPanel.SetActive(false);
+            else
+                Toggle();
+        }
     }
 
     void OnApplicationPause(bool paused)

@@ -355,6 +355,8 @@ namespace Escape.EditorAutomation
                                  "rerun after the art imports");
             }
             Button button = img.gameObject.AddComponent<Button>();
+            // Touch UI: no focus concept, don't latch the "selected" tint.
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
 
             UIPulse pulse = img.gameObject.AddComponent<UIPulse>();
             pulse.glowFrames = glow;
@@ -386,6 +388,8 @@ namespace Escape.EditorAutomation
             img.type = Image.Type.Sliced;
             img.color = new Color(0.13f, 0.35f, 0.46f, 0.8f);
             Button button = img.gameObject.AddComponent<Button>();
+            // Touch UI: no focus concept, don't latch the "selected" tint.
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
 
             TextMeshProUGUI text = NewRect("Label", rect).gameObject.AddComponent<TextMeshProUGUI>();
             Stretch((RectTransform)text.transform);

@@ -17,6 +17,12 @@ namespace Escape.EditorAutomation
         {
             int failed = 0;
 
+            // Diagnostic: GraphicsSettings' m_CustomRenderPipeline guid looks
+            // dangling on disk — log what actually resolves so the mobile
+            // render tuning (HDR, quality tiers) is known to be live or moot.
+            var rp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
+            Debug.Log($"[MasterPipeline] Active render pipeline: {(rp != null ? rp.name : "NULL (built-in)")}");
+
             failed += Step("RemoveMissingScripts", ProjectMaintenance.RemoveMissingScripts);
             failed += Step("SliceGeneratedSprites", SliceGeneratedSprites.Run);
             failed += Step("BuildHeroAnimators", AnimatorBuilder.BuildHeroAnimators);
@@ -31,6 +37,7 @@ namespace Escape.EditorAutomation
             // generated-level pickups (and legacy scenes are re-saved by the augment pass).
             failed += Step("FixPowerupVisuals", PlaytestFixes.FixPowerupVisuals);
             failed += Step("RebuildLevelSelect", LevelMenuBuilder.Run);
+            failed += Step("EnsureMoreLoreSafeArea", ProjectMaintenance.EnsureMoreLoreSafeArea);
             // After BuildGameplayUIPrefab (which rebuilds that prefab from
             // scratch) and after BuildAllLevels (whose GEN_ sweep clears the
             // Level-1 easing objects).

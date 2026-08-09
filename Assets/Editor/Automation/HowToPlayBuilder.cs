@@ -251,6 +251,8 @@ namespace Escape.EditorAutomation
             img.type = Image.Type.Sliced;
             img.color = new Color(0.13f, 0.35f, 0.46f, 0.95f);
             Button button = img.gameObject.AddComponent<Button>();
+            // Touch UI: no focus concept, don't latch the "selected" tint.
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
 
             TextMeshProUGUI text = MakeLabel((RectTransform)img.transform, "Label", label,
                 Mathf.Min(44, size.y * 0.42f), Vector2.zero, size.x);

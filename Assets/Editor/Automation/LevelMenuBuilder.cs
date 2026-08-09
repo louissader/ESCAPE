@@ -131,6 +131,9 @@ namespace Escape.EditorAutomation
                 label.color = Color.white;
                 label.alignment = TextAlignmentOptions.Center;
             }
+            var backSelectable = go.GetComponent<Selectable>();
+            if (backSelectable != null)
+                backSelectable.navigation = new Navigation { mode = Navigation.Mode.None };
             EditorUtility.SetDirty(go);
         }
 
@@ -168,6 +171,9 @@ namespace Escape.EditorAutomation
                 label.color = Color.white;
                 label.alignment = TextAlignmentOptions.Center;
             }
+            var continueSelectable = go.GetComponent<Selectable>();
+            if (continueSelectable != null)
+                continueSelectable.navigation = new Navigation { mode = Navigation.Mode.None };
             EditorUtility.SetDirty(go);
         }
 

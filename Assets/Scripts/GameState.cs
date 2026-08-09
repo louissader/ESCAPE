@@ -134,6 +134,7 @@ public class GameState : MonoBehaviour
             SaveSystem.OnLevelCompleted(level);
         CrystalTracker.RecordStars(level);
         AudioManager.PlaySfx("level_complete");
+        Haptics.Success();
 
         // Interactive win panel (Next Level / Replay / Level Select) replaces
         // the old auto-jump to level select that broke progression.

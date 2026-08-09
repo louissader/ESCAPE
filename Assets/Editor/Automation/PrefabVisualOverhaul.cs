@@ -74,6 +74,8 @@ namespace Escape.EditorAutomation
 
                 if (root.GetComponent<PlayerSfx>() == null)
                     root.AddComponent<PlayerSfx>();
+                if (root.GetComponent<PlayerHaptics>() == null)
+                    root.AddComponent<PlayerHaptics>();
 
                 // FirePoint stays at +/-0.5 on X — matches the new 1-unit-wide body.
 

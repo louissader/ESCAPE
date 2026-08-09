@@ -93,6 +93,7 @@ public class SwapModeController : MonoBehaviour
         VirtualInputRouter.Swap();
         ApplyActiveState(VirtualInputRouter.ActivePlayerId);
         AudioManager.PlaySfx("swap");
+        Haptics.SelectionTick();
         OnSwapped?.Invoke(VirtualInputRouter.ActivePlayerId);
     }
 

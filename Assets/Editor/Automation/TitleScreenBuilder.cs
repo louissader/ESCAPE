@@ -239,8 +239,15 @@ namespace Escape.EditorAutomation
 
         static Button BuildPlayButton(RectTransform root)
         {
+            // Own stretch+fitter wrapper (not BuildCorners' container, which
+            // is created later) so the primary CTA respects the safe area
+            // without changing sibling render order.
+            RectTransform safe = NewRect("PlaySafeArea", root);
+            Stretch(safe);
+            safe.gameObject.AddComponent<SafeAreaFitter>();
+
             Sprite[] glow = LoadFrames(BtnPlaySheet, "btn_play_glow_", 4);
-            Button play = MakeSpriteButton(root, "Btn_Play", "PLAY",
+            Button play = MakeSpriteButton(safe, "Btn_Play", "PLAY",
                 glow.Length > 0 ? glow[0] : null,
                 new Vector2(0, -160), new Vector2(512, 160), 66);
             if (glow.Length > 0)
@@ -353,6 +360,8 @@ namespace Escape.EditorAutomation
                 img.color = StoneButton;
             }
             Button button = img.gameObject.AddComponent<Button>();
+            // Touch UI: no focus concept, don't latch the "selected" tint.
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
 
             TextMeshProUGUI text = NewRect("Label", (RectTransform)img.transform)
                 .gameObject.AddComponent<TextMeshProUGUI>();

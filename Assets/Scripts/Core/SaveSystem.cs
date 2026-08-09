@@ -13,6 +13,7 @@ public static class SaveSystem
     const string KeyMusicVolume = "escape.musicVolume";
     const string KeySfxVolume = "escape.sfxVolume";
     const string KeyControlMode = "escape.controlMode";
+    const string KeyHaptics = "escape.haptics";
     const string KeyStorySeen = "escape.storySeen";
     const string KeyTutorialSeen = "escape.tutorialSeen";
     const string KeyIntroSeen = "escape.introSeen";
@@ -112,6 +113,13 @@ public static class SaveSystem
     {
         get { return PlayerPrefs.GetFloat(KeySfxVolume, 1f); }
         set { PlayerPrefs.SetFloat(KeySfxVolume, Mathf.Clamp01(value)); }
+    }
+
+    /// <summary>Settings-tier pref like the volumes: survives ResetProgress.</summary>
+    public static bool HapticsEnabled
+    {
+        get { return PlayerPrefs.GetInt(KeyHaptics, 1) == 1; }
+        set { PlayerPrefs.SetInt(KeyHaptics, value ? 1 : 0); PlayerPrefs.Save(); }
     }
 
     public static ControlModeSetting ControlMode

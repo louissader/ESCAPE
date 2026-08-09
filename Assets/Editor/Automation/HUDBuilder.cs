@@ -72,9 +72,15 @@ namespace Escape.EditorAutomation
                 (Image p2BarFill, _) = MakeBar(hudRect, "P2_HP", new Vector2(1, 1), new Vector2(-504, -56));
 
                 // Portrait taps swap (inactive portrait only; GameHUD guards).
-                Button p1Tap = p1Portrait.gameObject.AddComponent<Button>();
+                // The 80x112 portraits are ~32 pt wide — under Apple's 44 pt
+                // floor — so the Button lives on an invisible 136x136 child.
+                // P2's is nudged 14 left to keep >=8 units clear of
+                // Btn_Pause (left edge -184).
+                p1Portrait.raycastTarget = false;
+                p2Portrait.raycastTarget = false;
+                Button p1Tap = MakeTapArea(p1Portrait.rectTransform, 0f);
                 UnityEventTools.AddPersistentListener(p1Tap.onClick, hud.OnPortrait1Tapped);
-                Button p2Tap = p2Portrait.gameObject.AddComponent<Button>();
+                Button p2Tap = MakeTapArea(p2Portrait.rectTransform, -14f);
                 UnityEventTools.AddPersistentListener(p2Tap.onClick, hud.OnPortrait2Tapped);
 
                 // Persistent objective line (Playtest 6 P1), under the bars.
@@ -127,12 +133,16 @@ namespace Escape.EditorAutomation
                 Toggle coop = MakeToggle(settings, "CoopToggle", "2-PLAYER CO-OP", new Vector2(440, -40));
                 UnityEventTools.AddPersistentListener(coop.onValueChanged, panel.OnCoopModeSelected);
 
+                MakeLabel(settings, "HapticsLabel", "HAPTICS", 40, new Vector2(0.5f, 0.5f), new Vector2(-420, -160));
+                Toggle haptics = MakeToggle(settings, "HapticsToggle", "VIBRATION", new Vector2(40, -160));
+                UnityEventTools.AddPersistentListener(haptics.onValueChanged, panel.OnHapticsToggled);
+
                 Button reset = MakeTextButton(settings, "Btn_Reset", "RESET PROGRESS",
-                    new Vector2(0.5f, 0.5f), new Vector2(0, -180), new Vector2(560, 88));
+                    new Vector2(0.5f, 0.5f), new Vector2(0, -260), new Vector2(560, 88));
                 UnityEventTools.AddPersistentListener(reset.onClick, panel.OnResetProgress);
 
                 Button close = MakeTextButton(settings, "Btn_Close", "BACK",
-                    new Vector2(0.5f, 0.5f), new Vector2(0, -320), new Vector2(360, 88));
+                    new Vector2(0.5f, 0.5f), new Vector2(0, -380), new Vector2(360, 88));
                 UnityEventTools.AddPersistentListener(close.onClick, panel.OnClose);
 
                 // Reset confirm sub-panel.
@@ -161,6 +171,7 @@ namespace Escape.EditorAutomation
                 SetPrivate(panel, "sfxSlider", sfx);
                 SetPrivate(panel, "swapToggle", swap);
                 SetPrivate(panel, "coopToggle", coop);
+                SetPrivate(panel, "hapticsToggle", haptics);
                 SetPrivate(panel, "resetConfirm", confirm.gameObject);
 
                 // ---------- Level-end panels (win + fail) ----------
@@ -402,6 +413,18 @@ namespace Escape.EditorAutomation
             return img;
         }
 
+        static Button MakeTapArea(RectTransform parent, float xOffset)
+        {
+            Image img = NewRect("TapArea", parent).gameObject.AddComponent<Image>();
+            Place((RectTransform)img.transform, new Vector2(0.5f, 0.5f),
+                new Vector2(xOffset, 0), new Vector2(136, 136));
+            img.color = Color.clear;
+            Button button = img.gameObject.AddComponent<Button>();
+            button.transition = Selectable.Transition.None;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            return button;
+        }
+
         static Image MakeGlow(RectTransform parent, string name, Vector2 anchor, Vector2 pos)
         {
             Image glow = NewRect(name, parent).gameObject.AddComponent<Image>();
@@ -440,6 +463,9 @@ namespace Escape.EditorAutomation
             img.type = Image.Type.Sliced;
             img.color = new Color(0.13f, 0.35f, 0.46f, 0.95f);
             Button button = img.gameObject.AddComponent<Button>();
+            // Touch UI: no keyboard/controller focus, so a tap must not
+            // leave the "selected" tint latched until the next tap.
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
 
             TextMeshProUGUI text = MakeLabel((RectTransform)img.transform, "Label", label,
                 Mathf.Min(44, size.y * 0.42f), new Vector2(0.5f, 0.5f), Vector2.zero);
@@ -465,6 +491,7 @@ namespace Escape.EditorAutomation
             RectTransform rect = NewRect(name, parent);
             Place(rect, new Vector2(0.5f, 0.5f), pos, new Vector2(640, 48));
             Slider slider = rect.gameObject.AddComponent<Slider>();
+            slider.navigation = new Navigation { mode = Navigation.Mode.None };
             slider.minValue = 0.0001f;
             slider.maxValue = 1f;
 
@@ -493,7 +520,12 @@ namespace Escape.EditorAutomation
         {
             RectTransform rect = NewRect(name, parent);
             Place(rect, new Vector2(0.5f, 0.5f), pos, new Vector2(380, 72));
+            // Whole-row hit surface: the 56-unit box alone is ~22 pt,
+            // half Apple's 44 pt floor. Invisible but raycastable.
+            Image hit = rect.gameObject.AddComponent<Image>();
+            hit.color = Color.clear;
             Toggle toggle = rect.gameObject.AddComponent<Toggle>();
+            toggle.navigation = new Navigation { mode = Navigation.Mode.None };
 
             Image box = NewRect("Box", rect).gameObject.AddComponent<Image>();
             Place((RectTransform)box.transform, new Vector2(0, 0.5f), new Vector2(36, 0), new Vector2(56, 56));
@@ -507,8 +539,20 @@ namespace Escape.EditorAutomation
             check.color = new Color(0.22f, 0.88f, 0.55f, 1f);
             toggle.graphic = check;
 
+            // Constrain the label to this row: MakeLabel's shared 720-wide
+            // rect would bleed ~490 units past the 380-unit toggle and
+            // straight through the neighbouring toggle's checkbox.
             TextMeshProUGUI text = MakeLabel(rect, "Label", label, 32, new Vector2(0.5f, 0.5f), new Vector2(60, 0));
+            RectTransform textRect = (RectTransform)text.transform;
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.pivot = new Vector2(0.5f, 0.5f);
+            textRect.offsetMin = new Vector2(76, 0);
+            textRect.offsetMax = new Vector2(-8, 0);
             text.alignment = TextAlignmentOptions.Left;
+            text.enableAutoSizing = true;
+            text.fontSizeMax = 32;
+            text.fontSizeMin = 26;
             return toggle;
         }
 

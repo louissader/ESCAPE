@@ -11,6 +11,7 @@ public class SettingsPanel : MonoBehaviour
     [SerializeField] private Slider sfxSlider;
     [SerializeField] private Toggle swapToggle;
     [SerializeField] private Toggle coopToggle;
+    [SerializeField] private Toggle hapticsToggle;
     [SerializeField] private GameObject resetConfirm;
 
     void OnEnable()
@@ -25,6 +26,8 @@ public class SettingsPanel : MonoBehaviour
             swapToggle.SetIsOnWithoutNotify(mode == ControlMode.Swap);
         if (coopToggle != null)
             coopToggle.SetIsOnWithoutNotify(mode == ControlMode.Coop);
+        if (hapticsToggle != null)
+            hapticsToggle.SetIsOnWithoutNotify(SaveSystem.HapticsEnabled);
         if (resetConfirm != null)
             resetConfirm.SetActive(false);
     }
@@ -52,6 +55,13 @@ public class SettingsPanel : MonoBehaviour
     {
         if (on)
             SaveSystem.ControlMode = SaveSystem.ControlModeSetting.Coop;
+    }
+
+    public void OnHapticsToggled(bool on)
+    {
+        SaveSystem.HapticsEnabled = on;
+        // Instant confirmation tick (no-op when just turned off).
+        Haptics.SelectionTick();
     }
 
     public void OnResetProgress()

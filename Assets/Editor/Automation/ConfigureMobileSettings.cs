@@ -12,7 +12,7 @@ namespace Escape.EditorAutomation
     public static class ConfigureMobileSettings
     {
         public const string BundleId = "com.louissader.escape";
-        public const string Version = "1.1.1";   // Build 3: mobile UX overhaul (was 1.1.0)
+        public const string Version = "1.1.2";   // Build 4: UX polish + haptics (was 1.1.1)
 
         [MenuItem("Escape/Configure Mobile Settings")]
         public static void Run()
@@ -28,9 +28,9 @@ namespace Escape.EditorAutomation
             // stores reject downgrades, and BuildScript calls Run() once per
             // platform build, so incrementing here would drift per run.
             int.TryParse(PlayerSettings.iOS.buildNumber, out int iosBuild);
-            PlayerSettings.iOS.buildNumber = Mathf.Max(2, iosBuild).ToString();
+            PlayerSettings.iOS.buildNumber = Mathf.Max(4, iosBuild).ToString();
             PlayerSettings.Android.bundleVersionCode =
-                Mathf.Max(2, PlayerSettings.Android.bundleVersionCode);
+                Mathf.Max(4, PlayerSettings.Android.bundleVersionCode);
 
             // Graphics: the project renders in LINEAR color space, but the
             // legacy Android API list included OpenGLES2 (incompatible —

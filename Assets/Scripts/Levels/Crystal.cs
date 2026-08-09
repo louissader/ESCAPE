@@ -23,6 +23,7 @@ public class Crystal : MonoBehaviour
             return;
         CrystalTracker.Collect();
         AudioManager.PlaySfx("crystal");
+        Haptics.ImpactLight();
         Destroy(gameObject);
     }
 }
