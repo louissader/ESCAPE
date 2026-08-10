@@ -23,7 +23,8 @@ a human holds; everything above it was automated and verified in-repo.
   lava/platform-form/exit-portal props, 2-zone parallax backgrounds, URP 2D
   lights, app icons. Deterministic pipelines: `tools/spritegen`,
   `tools/sfxgen` (regenerate: `tools/.venv/bin/python tools/<x>/generate_all.py`).
-- 8 levels (3 rebuilt + retuned, 5 new) via LevelDefinition assets +
+- 5 shipped levels (legacy 1-3 disabled via SceneRouter.FirstLevel — set
+  back to 1 and rebake to restore; displayed to players as 1-5) via LevelDefinition assets +
   LevelBuilder, each gated by an automated solvability check. Crystals
   (3/level) drive star ratings; torch checkpoints; hearts.
 - Audio: menu + 2 zone themes (GLYNMOOG, Streaming/Vorbis 0.7) and 15

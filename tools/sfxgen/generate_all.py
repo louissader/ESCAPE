@@ -1,4 +1,4 @@
-"""Generate all 15 ESCAPE sound effects into Assets/Audio/SFX/.
+"""Generate all 17 ESCAPE sound effects into Assets/Audio/SFX/.
 
 Deterministic: fixed seeds, pure numpy math, plain PCM WAV output.
 Run twice -> byte-identical files.
@@ -35,7 +35,7 @@ def chime(freq, dur, tau, bright=0.35):
 
 
 # ---------------------------------------------------------------------------
-# the 15 sounds
+# the 17 sounds
 # ---------------------------------------------------------------------------
 
 def sfx_jump():
@@ -225,6 +225,40 @@ def sfx_level_complete():
     return lowpass(c, 5500.0)
 
 
+def sfx_rumble():
+    """Intro collapse beat: low rolling mountain rumble, ~1.6 s.
+
+    Deep filtered noise swelling in and decaying, with two sub-sine thuds
+    like rock mass settling. Soft-edged to sit UNDER the narration.
+    """
+    dur = 1.6
+    c = timeline(dur)
+    body = lowpass(noise(dur, seed=71), 180.0)
+    body *= env_swell(dur, rise=0.22, fall=0.55)
+    add(c, body * 0.9, at=0.0)
+    for at, f in ((0.15, 52.0), (0.62, 44.0)):
+        thud = sine(pitch_sweep(f, f * 0.75, 0.5), 0.5)
+        thud *= env_perc(0.5, attack=0.008, tau=0.16)
+        add(c, thud * 0.8, at=at)
+    return lowpass(c, 300.0)
+
+
+def sfx_star_chime():
+    """Intro star-scatter beat: falling glissando of soft chimes, ~1.4 s.
+
+    A descending run (the stars falling away) that lands on a low, held
+    tone — wonder with a floor of loss, matching the beat's mood.
+    """
+    c = timeline(1.4)
+    run = (G6, E6, C6, G5, E5)
+    for i, f in enumerate(run):
+        add(c, chime(f, 0.30, 0.10, bright=0.3) * (0.55 - 0.05 * i), at=i * 0.14)
+    tail = 0.55 * sine(C5, 0.7) + 0.3 * triangle(C5, 0.7)
+    tail *= adsr(0.7, attack=0.02, decay=0.15, sustain=0.5, release=0.35)
+    add(c, tail * 0.5, at=0.66)
+    return lowpass(c, 6000.0)
+
+
 SOUNDS = {
     "jump.wav": sfx_jump,
     "land.wav": sfx_land,
@@ -241,6 +275,8 @@ SOUNDS = {
     "ui_tap.wav": sfx_ui_tap,
     "swap.wav": sfx_swap,
     "level_complete.wav": sfx_level_complete,
+    "rumble.wav": sfx_rumble,
+    "star_chime.wav": sfx_star_chime,
 }
 
 

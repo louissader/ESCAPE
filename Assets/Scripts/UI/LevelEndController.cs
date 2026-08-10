@@ -61,7 +61,7 @@ public class LevelEndController : MonoBehaviour
             AudioManager.Instance.SetDuck(0.4f);
 
         if (winTitle != null)
-            winTitle.text = $"LEVEL {level} COMPLETE";
+            winTitle.text = $"LEVEL {SceneRouter.DisplayNumber(level)} COMPLETE";
         if (winCrystals != null)
             winCrystals.text = crystals >= 1 && totalCrystals >= 1
                 ? "\u2605  STAR COLLECTED!"

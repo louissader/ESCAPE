@@ -20,8 +20,11 @@ public class LevelSelectCapture
         bool realStory = SaveSystem.StorySeen;
 
         SaveSystem.Migrate();
-        SaveSystem.OnLevelCompleted(1);       // unlocks 2, marks 1 complete + celebration
-        SaveSystem.RecordStars(1, 2);
+        // Stage progress on the shipped progression's FIRST level — internal
+        // level 1 no longer has a tile (legacy 1-3 disabled), so staging it
+        // there would render a capture that verifies nothing.
+        SaveSystem.OnLevelCompleted(SceneRouter.FirstLevel);
+        SaveSystem.RecordStars(SceneRouter.FirstLevel, 2);
 
         AsyncOperation op = SceneManager.LoadSceneAsync(SceneRouter.LevelSelect);
         while (!op.isDone)
@@ -64,7 +67,7 @@ public class LevelSelectCapture
 
         // Restore real progress (best effort — completion flags stay, which
         // only matters for this QA capture run, not player builds).
-        if (realHighest <= 1 && !realStory)
+        if (realHighest <= SceneRouter.FirstLevel && !realStory)
             SaveSystem.ResetProgress();
 
         Assert.Pass("level select captured");

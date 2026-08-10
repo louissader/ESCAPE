@@ -17,7 +17,9 @@ public class ScreenshotTests
     {
         System.IO.Directory.CreateDirectory("StoreAssets");
 
-        for (int n = 1; n <= SceneRouter.LevelCount; n++)
+        // Shipped progression only, named by the number PLAYERS see —
+        // store screenshots must never show disabled legacy levels.
+        for (int n = SceneRouter.FirstLevel; n <= SceneRouter.LevelCount; n++)
         {
             AsyncOperation op = SceneManager.LoadSceneAsync(SceneRouter.LevelSceneName(n));
             while (!op.isDone)
@@ -44,7 +46,8 @@ public class ScreenshotTests
             tex.ReadPixels(new Rect(0, 0, 1920, 1080), 0, 0);
             tex.Apply();
             RenderTexture.active = null;
-            System.IO.File.WriteAllBytes($"StoreAssets/play_level{n}.png", tex.EncodeToPNG());
+            System.IO.File.WriteAllBytes(
+                $"StoreAssets/play_level{SceneRouter.DisplayNumber(n)}.png", tex.EncodeToPNG());
             Object.Destroy(tex);
             rt.Release();
             Object.Destroy(rt);

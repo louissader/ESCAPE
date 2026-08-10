@@ -303,7 +303,12 @@ namespace Escape.EditorAutomation
         public static void EaseLevelOne()
         {
             const string holderName = "GEN_EaseL1";
-            var scene = EditorSceneManager.OpenScene("Assets/Scenes/Level 1.unity", OpenSceneMode.Single);
+            // Eases the FIRST level of the shipped progression (Skeleton
+            // Halls while legacy 1-3 are disabled via SceneRouter.FirstLevel
+            // — it was designed as mid-game, so the easing matters more).
+            var scene = EditorSceneManager.OpenScene(
+                $"Assets/Scenes/{SceneRouter.LevelSceneName(SceneRouter.FirstLevel)}.unity",
+                OpenSceneMode.Single);
 
             GameObject old = GameObject.Find(holderName);
             if (old != null)

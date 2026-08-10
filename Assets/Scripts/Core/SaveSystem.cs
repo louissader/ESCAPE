@@ -35,9 +35,13 @@ public static class SaveSystem
         if (PlayerPrefs.HasKey(LegacyUnlockedCount))
         {
             // Legacy semantics: unlockedCount N meant levels up to N+1 playable.
+            // Compare against the RAW pref, not the floored getter: the raw
+            // value must be preserved (floor applies only at read time) or
+            // legacy progress below FirstLevel is destroyed and lost forever
+            // if levels 1-3 are ever re-enabled.
             int legacy = PlayerPrefs.GetInt(LegacyUnlockedCount, 0);
             int highest = Mathf.Clamp(legacy + 1, 1, SceneRouter.LevelCount);
-            if (highest > HighestUnlockedLevel)
+            if (highest > PlayerPrefs.GetInt(KeyHighestUnlocked, 1))
                 HighestUnlockedLevel = highest;
             PlayerPrefs.DeleteKey(LegacyUnlockedCount);
         }
@@ -46,17 +50,23 @@ public static class SaveSystem
         PlayerPrefs.Save();
     }
 
-    /// <summary>Highest level the player may enter (1-based, >= 1).</summary>
+    /// <summary>Highest level the player may enter. Floored at FirstLevel
+    /// (legacy 1-3 are shipped-disabled) and clamped to LevelCount so a
+    /// stale save can never route to a scene outside the progression.</summary>
     public static int HighestUnlockedLevel
     {
-        get { return Mathf.Max(1, PlayerPrefs.GetInt(KeyHighestUnlocked, 1)); }
+        get
+        {
+            return Mathf.Clamp(PlayerPrefs.GetInt(KeyHighestUnlocked, 1),
+                SceneRouter.FirstLevel, SceneRouter.LevelCount);
+        }
         private set { PlayerPrefs.SetInt(KeyHighestUnlocked, value); }
     }
 
     /// <summary>True once any progress beyond a fresh install exists.</summary>
     public static bool HasProgress
     {
-        get { return HighestUnlockedLevel > 1 || StorySeen; }
+        get { return HighestUnlockedLevel > SceneRouter.FirstLevel || StorySeen; }
     }
 
     /// <summary>Max-based unlock (B2): replaying old levels never over-unlocks.</summary>

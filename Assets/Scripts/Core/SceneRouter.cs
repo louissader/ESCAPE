@@ -16,6 +16,21 @@ public static class SceneRouter
     /// <summary>Total playable levels.</summary>
     public const int LevelCount = 8;
 
+    /// <summary>First level of the shipped progression. Legacy levels 1-3
+    /// are DISABLED, not deleted: set this back to 1 and rebake (Escape/Run
+    /// Master Pipeline) to restore them. Internal numbering never changes —
+    /// only what the player sees, via DisplayNumber.</summary>
+    public const int FirstLevel = 4;
+
+    /// <summary>Number of levels in the shipped progression.</summary>
+    public const int PlayableLevelCount = LevelCount - FirstLevel + 1;
+
+    /// <summary>Player-facing level number (internal 4-8 shows as 1-5).</summary>
+    public static int DisplayNumber(int levelNumber)
+    {
+        return levelNumber - FirstLevel + 1;
+    }
+
     public static string LevelSceneName(int levelNumber)
     {
         return LevelPrefix + levelNumber;

@@ -615,6 +615,166 @@ def cutscene_dust():
     return img
 
 
+def cutscene_approach():
+    """New beat 0: the heroes on a dusk ridge, the legend's mountain ahead.
+
+    Wide vista, calmer than the entrance plate: deep dusk sky with the
+    story's stars still hanging in it, a distant mountain holding a faint
+    gold glint at its cave mouth, and the two heroes tiny on the ridge —
+    the journey still ahead of them.
+    """
+    rng = random.Random(305)
+    img = blank(_HW, _HH)
+    # deep dusk: violet night overhead falling to a burnt-orange horizon
+    _vgrad_smooth(
+        img,
+        [(0, "#0d0820"), (34, "#2c1838"), (62, "#6d3244"), (84, "#c96f3e")],
+        seed=315,
+    )
+    # the stars, still in the sky where they belong (sparse, cool + 3 gold)
+    for i in range(16):
+        x = rng.randrange(PW)
+        y = rng.randrange(4, 52)
+        if i % 5 == 0:
+            _sparkle(img, x, y, 0.9, "#efe6ff", "#8d82b8")
+        else:
+            _draw_ellipse(img, x, y, 0.4, 0.4, "#6a6090")
+    for x, y in [(52, 14), (150, 9), (196, 26)]:
+        _sparkle(img, x, y, 1.2, "#fff3c4", "#f4c05a", glow_r=4)
+    # the legend's mountain: dark peak right of center against the sunset
+    peak = [(126, 96), (150, 44), (162, 58), (174, 50), (204, 96)]
+    _draw_poly(img, [(120, 135), *peak, (210, 135)], "#221521")
+    _draw_poly(img, [(148, 52), (150, 44), (156, 52), (150, 56)], "#4a2f3a")
+    # the cave mouth: one warm pinprick on the mountain's flank
+    _glow(img, 158, 74, 6, 4.5, "#d97a3c", 0.55, power=1.6)
+    _sparkle(img, 158, 74, 1.1, "#fff3c4", "#e8935a")
+    # far ridge rolling toward the mountain
+    far = _wrapped_curve(rng, _HW, 100 * _S, [6 * _S, 4 * _S, 2 * _S])
+    _fill_below_shaded(img, far, "#1d1220", "#120a16", 100, 135)
+    # foreground ridge the heroes stand on, dusk grazing its crest
+    near = _wrapped_curve(rng, _HW, 116 * _S, [4 * _S, 3 * _S, 1.5 * _S])
+    _fill_below_shaded(img, near, "#160d16", "#0c060e", 116, 135)
+    crest = hex_rgba("#33202c")
+    for x in range(_HW):
+        t = max(0, min(_HH - 2, int(near[x])))
+        img[t : t + 2, x] = crest
+    # contact shadows + the pair, small against the world, facing the peak
+    ridge_y = 114
+    _glow(img, 63.5, ridge_y + 9.8, 6, 1.5, "#060309", 0.5, power=1.2)
+    _glow(img, 51.5, ridge_y + 9.8, 6, 1.5, "#060309", 0.5, power=1.2)
+    _hero_smooth(img, 60, ridge_y, palette.EMBER["primary"],
+                 palette.EMBER["secondary"], 1)
+    _hero_smooth(img, 48, ridge_y, palette.WISP["primary"],
+                 palette.WISP["secondary"], 1)
+    return _plate_finish(img)
+
+
+def cutscene_descent():
+    """New beat 4: from a ledge, the vast glowing depths the stars fell into.
+
+    A tall shaft opening into darkness: the heroes peer over a ledge at the
+    top-left while layers of warm light pool impossibly far below, gold
+    pinpricks still sinking toward it.
+    """
+    rng = random.Random(306)
+    img = blank(_HW, _HH)
+    _vgrad_smooth(img, [(0, "#060310"), (60, "#0a0716"), (135, "#120a14")],
+                  seed=316, grain=1.2)
+    wall = hex_rgba("#150e1c")
+    wall_lit = hex_rgba("#262034")
+    # shaft walls: crags closing in from both sides, opening downward
+    for side, edge in ((0, 58), (1, 182)):
+        pts = ([(0, 0), (edge, 0), (edge - 26, 135), (0, 135)] if side == 0
+               else [(edge, 0), (240, 0), (240, 135), (edge + 26, 135)])
+        _draw_poly(img, pts, "#150e1c")
+    for _ in range(7):  # stalactite teeth off the upper rim
+        x = rng.randrange(40 * _S, 200 * _S)
+        _spike_down(img, x, rng.randrange(4 * _S, 8 * _S),
+                    rng.randrange(8 * _S, 20 * _S), wall, rim=wall_lit)
+    # the depths: stacked warm glows, brighter and tighter the deeper they go
+    _glow(img, 120, 132, 62, 26, "#2a1a10", 0.55, power=1.9)
+    _glow(img, 122, 133, 40, 17, "#5a3418", 0.5, power=1.7)
+    _glow(img, 118, 134, 22, 10, "#a06428", 0.45, power=1.5)
+    _glow(img, 119, 135, 10, 5, "#e8a04a", 0.4, power=1.3)
+    # gold pinpricks still sinking: brighter near the light, dim up high
+    for i in range(12):
+        x = 78 + rng.randrange(84)
+        y = 46 + rng.randrange(78)
+        deep = y > 92
+        _sparkle(img, x, y, 1.2 if deep else 0.8,
+                 "#fff3c4" if deep else "#f4c05a",
+                 "#f4c05a" if deep else "#c98a2e",
+                 glow_r=4 if deep else None)
+    # the heroes' ledge, top-left, jutting over the void
+    ledge = [(0, 34), (44, 36), (58, 42), (50, 48), (0, 52)]
+    _draw_poly(img, ledge, "#1c1322")
+    _draw_poly(img, [(0, 34), (44, 36), (58, 42), (44, 40), (0, 37)], "#2e2438")
+    # contact shadows + the pair peering over the edge
+    _glow(img, 33.5, 36.3, 6, 1.5, "#060309", 0.55, power=1.2)
+    _glow(img, 21.5, 35.6, 6, 1.5, "#060309", 0.55, power=1.2)
+    _hero_smooth(img, 30, 26.5, palette.EMBER["primary"],
+                 palette.EMBER["secondary"], 1)
+    _hero_smooth(img, 18, 26, palette.WISP["primary"],
+                 palette.WISP["secondary"], 1)
+    # their own light catching the ledge lip
+    _glow(img, 30, 38, 12, 3, "#4a2418", 0.35, power=1.4)
+    return _plate_finish(img)
+
+
+def cutscene_streak():
+    """Soft falling-star streak overlay: bright head, long fading tail.
+
+    Analytic alpha like cutscene_dust — imports smooth via the
+    Backgrounds/cutscene_* rule. Drawn head-down-right along the diagonal
+    so a plain downward drift reads as the star falling the way the
+    star-scatter plate's baked streaks do.
+    """
+    size = 128
+    img = blank(size, size)
+    yy, xx = np.mgrid[0:size, 0:size]
+    # tail axis: from upper-left (tail end) to lower-right (head)
+    hx, hy = size * 0.72, size * 0.72
+    tx, ty = size * 0.14, size * 0.14
+    dx, dy = hx - tx, hy - ty
+    length = math.hypot(dx, dy)
+    ux, uy = dx / length, dy / length
+    # projection along the axis (0 tail -> 1 head), distance from the axis
+    t = np.clip(((xx - tx) * ux + (yy - ty) * uy) / length, 0.0, 1.0)
+    d = np.abs((xx - tx) * uy - (yy - ty) * ux)
+    width = 1.5 + 5.5 * t          # tail tapers, head is fat
+    body = np.clip(1.0 - d / width, 0.0, 1.0) ** 1.8 * (t ** 1.6)
+    # hot round head with a soft bloom
+    dh = np.sqrt((xx - hx) ** 2 + (yy - hy) ** 2)
+    head = np.clip(1.0 - dh / (size * 0.10), 0.0, 1.0) ** 1.4
+    bloom = np.clip(1.0 - dh / (size * 0.22), 0.0, 1.0) ** 2.2
+    alpha = np.clip(body * 0.75 + head + bloom * 0.5, 0.0, 1.0)
+    # gold body shading to a near-white core at the head
+    core = np.clip(head, 0.0, 1.0)[:, :, None]
+    gold = np.array([244, 192, 90], dtype=np.float64)
+    white = np.array([255, 243, 196], dtype=np.float64)
+    col = gold + (white - gold) * core
+    img[:, :, :3] = col.astype(np.uint8)
+    img[:, :, 3] = np.round(alpha * 245).astype(np.uint8)
+    return img
+
+
+def cutscene_glow():
+    """Large soft radial glow overlay (warm near-white; builders tint it).
+
+    Single smooth falloff lobe — the all-purpose light source for cutscene
+    beats (cave-mouth warmth, depth light, hero glow pools).
+    """
+    size = 128
+    img = blank(size, size)
+    yy, xx = np.mgrid[0:size, 0:size]
+    c = (size - 1) / 2.0
+    d = np.sqrt((xx - c) ** 2 + (yy - c) ** 2) / (size / 2.0)
+    alpha = np.clip(1.0 - d, 0.0, 1.0) ** 2.2
+    img[:, :, 0], img[:, :, 1], img[:, :, 2] = 255, 235, 200   # warm white
+    img[:, :, 3] = np.round(alpha * 230).astype(np.uint8)
+    return img
+
+
 def title_bg():
     """Title-screen backdrop: night cave-mouth vista framing a calm center.
 
@@ -721,9 +881,11 @@ LAYERS = {
 }
 
 PLATES = {
+    "cutscene_approach": cutscene_approach,
     "cutscene_entrance": cutscene_entrance,
     "cutscene_collapse": cutscene_collapse,
     "cutscene_stars": cutscene_stars,
+    "cutscene_descent": cutscene_descent,
     "cutscene_resolve": cutscene_resolve,
     "title_bg": title_bg,
 }
@@ -736,8 +898,10 @@ def generate():
     for name, fn in PLATES.items():
         # native 960x540 — no NEAREST upscale (plate fns downsample for AA)
         save_single(fn(), "plate_0", out_path("Backgrounds", f"{name}.png"))
-    # smooth overlay sprite for the intro's collapse beat (not a plate)
+    # smooth overlay sprites for the intro beats (not plates)
     save_single(cutscene_dust(), "dust_0", out_path("Backgrounds", "cutscene_dust.png"))
+    save_single(cutscene_streak(), "streak_0", out_path("Backgrounds", "cutscene_streak.png"))
+    save_single(cutscene_glow(), "glow_0", out_path("Backgrounds", "cutscene_glow.png"))
 
 
 if __name__ == "__main__":

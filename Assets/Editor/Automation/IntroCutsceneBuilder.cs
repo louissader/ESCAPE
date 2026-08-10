@@ -27,21 +27,37 @@ namespace Escape.EditorAutomation
         const string CanvasName = "IntroUI";
 
         // Must mirror the IntroCutscene.captions field initializer — the
-        // component default and the built scene must never diverge.
+        // component default and the built scene must never diverge. The
+        // SPOKEN narration says more than these captions; its source of
+        // truth is tools/vogen/generate_vo.sh (same beat order).
         static readonly string[] Captions =
         {
             "Two friends chased a legend: a cave full of fallen stars.",
+            "They found the way in.",
             "The mountain had other plans.",
             "The stars scattered into the deep... every last one.",
+            "Deeper than any map had dared to go.",
             "The only way out is down. Together.",
         };
 
         static readonly string[] PlateSheets =
         {
+            "Assets/Art/Generated/Backgrounds/cutscene_approach.png",
             "Assets/Art/Generated/Backgrounds/cutscene_entrance.png",
             "Assets/Art/Generated/Backgrounds/cutscene_collapse.png",
             "Assets/Art/Generated/Backgrounds/cutscene_stars.png",
+            "Assets/Art/Generated/Backgrounds/cutscene_descent.png",
             "Assets/Art/Generated/Backgrounds/cutscene_resolve.png",
+        };
+
+        static readonly string[] VoiceClips =
+        {
+            "Assets/Audio/VO/vo_beat0.wav",
+            "Assets/Audio/VO/vo_beat1.wav",
+            "Assets/Audio/VO/vo_beat2.wav",
+            "Assets/Audio/VO/vo_beat3.wav",
+            "Assets/Audio/VO/vo_beat4.wav",
+            "Assets/Audio/VO/vo_beat5.wav",
         };
 
         // Plates are native 960x540 (16:9), drawn in a 240x135 composition
@@ -49,9 +65,11 @@ namespace Escape.EditorAutomation
         const float PlateAspect = 960f / 540f;
         const float CompW = 240f, CompH = 135f;
         const string StarSheet = "Assets/Art/Generated/Props/star.png";
-        // Smooth Bilinear-imported mote (NOT the 8px pixel-art FX dust_puff,
+        // Smooth Bilinear-imported overlays (NOT the 8px pixel-art FX,
         // which would read as blocks scaled over the anti-aliased plates).
         const string DustSheet = "Assets/Art/Generated/Backgrounds/cutscene_dust.png";
+        const string StreakSheet = "Assets/Art/Generated/Backgrounds/cutscene_streak.png";
+        const string GlowSheet = "Assets/Art/Generated/Backgrounds/cutscene_glow.png";
 
         [MenuItem("Escape/Build Intro Cutscene")]
         public static void Run()
@@ -161,9 +179,23 @@ namespace Escape.EditorAutomation
             cutscene.letsGoButton = letsGo;     // Awake hooks onClick, like skip
             cutscene.beatOverlayRoots = overlayRoots;
             cutscene.dustMotes = motes;
+
+            // Narration: scene-local source so the cutscene speaks even when
+            // the persistent AudioManager is absent (direct scene play).
+            AudioSource voice = root.AddComponent<AudioSource>();
+            voice.playOnAwake = false;
+            voice.loop = false;
+            voice.spatialBlend = 0f;   // 2D
+            cutscene.voiceSource = voice;
+            cutscene.beatVoiceOvers = VoiceClips
+                .Select(AssetDatabase.LoadAssetAtPath<AudioClip>).ToArray();
+
             if (cutscene.plates.Any(p => p == null))
                 Debug.LogWarning("[IntroCutsceneBuilder] cutscene plate sprite(s) missing " +
                                  "— rerun after the art imports");
+            if (cutscene.beatVoiceOvers.Any(v => v == null))
+                Debug.LogWarning("[IntroCutsceneBuilder] voice-over clip(s) missing — run " +
+                                 "tools/vogen/generate_vo.sh, then rebuild the intro");
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log($"[IntroCutsceneBuilder] saved {ScenePath}");
@@ -173,24 +205,27 @@ namespace Escape.EditorAutomation
 
         /// <summary>
         /// One overlay root per beat, children of the plate so they ride the
-        /// Ken-Burns drift (IntroCutscene shows exactly one root per beat):
-        /// twinkling star glints inside the cave mouth (entrance), drifting
-        /// dust motes on the rubble (collapse, drifted by IntroCutscene via
-        /// the returned `motes`), twinkles riding the painted swarm (stars).
-        /// The resolve beat's root stays empty — pure darkness is the shot.
+        /// Ken-Burns drift (IntroCutscene shows exactly one root per beat).
+        /// 6-beat order: approach, entrance, collapse, star-scatter, descent,
+        /// resolve — every beat now carries motion (twinkles via UIPulse,
+        /// falls/rises/fades via UIDrift, collapse dust via IntroCutscene's
+        /// Lissajous through the returned `motes`).
         /// Positions are backgrounds.py composition coords (240x135).
         /// </summary>
         static RectTransform[] BuildBeatOverlays(RectTransform plate, out RectTransform[] motes)
         {
             Sprite[] twinkle = TitleScreenBuilder.LoadFrames(StarSheet, "star_twinkle_", 4);
-            // Backgrounds import Single, so this falls back to the whole asset.
+            // Backgrounds import Single, so these fall back to the whole asset.
             Sprite dust = TitleScreenBuilder.LoadSprite(DustSheet, "cutscene_dust_dust_0");
+            Sprite streak = TitleScreenBuilder.LoadSprite(StreakSheet, "cutscene_streak_streak_0");
+            Sprite glow = TitleScreenBuilder.LoadSprite(GlowSheet, "cutscene_glow_glow_0");
             if (twinkle.Length == 0)
                 Debug.LogWarning("[IntroCutsceneBuilder] star_twinkle frames missing — " +
                                  "star overlays skipped; rerun after the art imports");
-            if (dust == null)
-                Debug.LogWarning("[IntroCutsceneBuilder] cutscene_dust sprite missing — " +
-                                 "dust overlay skipped; rerun after the art imports");
+            if (dust == null || streak == null || glow == null)
+                Debug.LogWarning("[IntroCutsceneBuilder] smooth overlay sprite(s) missing " +
+                                 "(dust/streak/glow) — some overlays skipped; rerun after " +
+                                 "the art imports");
 
             var roots = new RectTransform[PlateSheets.Length];
             for (int i = 0; i < roots.Length; i++)
@@ -200,35 +235,80 @@ namespace Escape.EditorAutomation
                 roots[i].gameObject.SetActive(false);   // IntroCutscene activates per beat
             }
 
-            // Beat 0 — entrance: gold glints deep in the cave-mouth dark.
-            AddTwinkle(roots[0], 0, 117f, 103f, 46f, twinkle, 5f, 3.1f);
-            AddTwinkle(roots[0], 1, 128f, 108f, 38f, twinkle, 4f, 2.4f);
-            AddTwinkle(roots[0], 2, 133f, 114f, 30f, twinkle, 6f, 3.6f);
-            AddTwinkle(roots[0], 3, 110f, 111f, 30f, twinkle, 4.5f, 2.8f);
-            AddTwinkle(roots[0], 4, 122f, 117f, 34f, twinkle, 5.5f, 2.0f);
+            // Beat 0 — approach: the sky's gold stars twinkle; the distant
+            // cave mouth breathes a faint warm glow.
+            AddTwinkle(roots[0], 0, 52f, 14f, 40f, twinkle, 4.5f, 2.3f);
+            AddTwinkle(roots[0], 1, 150f, 9f, 44f, twinkle, 5.5f, 3.0f);
+            AddTwinkle(roots[0], 2, 196f, 26f, 36f, twinkle, 4f, 2.6f);
+            AddGlow(roots[0], "MouthGlow", 158f, 74f, 130f, glow,
+                    new Color(0.85f, 0.48f, 0.24f, 0.30f), 0.10f, 0.7f);
 
-            // Beat 1 — collapse: dust rolling off the rubble pile + the last
-            // sliver of light. IntroCutscene drifts these (slow Lissajous).
+            // Beat 1 — entrance: gold glints deep in the cave-mouth dark +
+            // warm light breathing out of the mouth itself.
+            AddTwinkle(roots[1], 0, 117f, 103f, 46f, twinkle, 5f, 3.1f);
+            AddTwinkle(roots[1], 1, 128f, 108f, 38f, twinkle, 4f, 2.4f);
+            AddTwinkle(roots[1], 2, 133f, 114f, 30f, twinkle, 6f, 3.6f);
+            AddTwinkle(roots[1], 3, 110f, 111f, 30f, twinkle, 4.5f, 2.8f);
+            AddTwinkle(roots[1], 4, 122f, 117f, 34f, twinkle, 5.5f, 2.0f);
+            AddGlow(roots[1], "MouthGlow", 120f, 104f, 300f, glow,
+                    new Color(0.90f, 0.62f, 0.30f, 0.16f), 0.08f, 0.6f);
+
+            // Beat 2 — collapse: dust rolling off the rubble pile (drifted by
+            // IntroCutscene's Lissajous) + dark debris streaming down the gap.
             var dustList = new System.Collections.Generic.List<RectTransform>(6);
-            dustList.Add(AddDust(roots[1], 0, 86f, 119f, 110f, dust));
-            dustList.Add(AddDust(roots[1], 1, 154f, 116f, 120f, dust));
-            dustList.Add(AddDust(roots[1], 2, 118f, 124f, 130f, dust));
-            dustList.Add(AddDust(roots[1], 3, 99f, 97f, 80f, dust));
-            dustList.Add(AddDust(roots[1], 4, 141f, 95f, 85f, dust));
-            dustList.Add(AddDust(roots[1], 5, 120f, 86f, 70f, dust));
+            dustList.Add(AddDust(roots[2], 0, 86f, 119f, 110f, dust));
+            dustList.Add(AddDust(roots[2], 1, 154f, 116f, 120f, dust));
+            dustList.Add(AddDust(roots[2], 2, 118f, 124f, 130f, dust));
+            dustList.Add(AddDust(roots[2], 3, 99f, 97f, 80f, dust));
+            dustList.Add(AddDust(roots[2], 4, 141f, 95f, 85f, dust));
+            dustList.Add(AddDust(roots[2], 5, 120f, 86f, 70f, dust));
             motes = dustList.ToArray();
+            Color debris = new Color(0.23f, 0.17f, 0.15f, 0.55f);
+            AddFall(roots[2], "Debris_0", 108f, 66f, 34f, dust, debris, 300f, 420f, 6f, 0.0f);
+            AddFall(roots[2], "Debris_1", 124f, 58f, 26f, dust, debris, 380f, 480f, 4f, 1.7f);
+            AddFall(roots[2], "Debris_2", 116f, 72f, 20f, dust, debris, 340f, 380f, 8f, 3.1f);
+            AddFall(roots[2], "Debris_3", 132f, 64f, 24f, dust, debris, 260f, 440f, 5f, 4.4f);
 
-            // Beat 2 — star scatter: twinkles riding the painted big stars
-            // (star centers = backgrounds.py cell origins + 8).
-            AddTwinkle(roots[2], 0, 56f, 28f, 96f, twinkle, 5f, 2.2f);
-            AddTwinkle(roots[2], 1, 104f, 46f, 88f, twinkle, 6f, 3.0f);
-            AddTwinkle(roots[2], 2, 150f, 32f, 96f, twinkle, 4.5f, 2.6f);
-            AddTwinkle(roots[2], 3, 84f, 76f, 84f, twinkle, 5.5f, 3.4f);
-            AddTwinkle(roots[2], 4, 130f, 82f, 88f, twinkle, 4f, 2.0f);
-            AddTwinkle(roots[2], 5, 174f, 64f, 80f, twinkle, 6.5f, 2.9f);
+            // Beat 3 — star scatter: twinkles riding the painted big stars
+            // (star centers = backgrounds.py cell origins + 8) + fresh
+            // streaks falling through the swarm.
+            AddTwinkle(roots[3], 0, 56f, 28f, 96f, twinkle, 5f, 2.2f);
+            AddTwinkle(roots[3], 1, 104f, 46f, 88f, twinkle, 6f, 3.0f);
+            AddTwinkle(roots[3], 2, 150f, 32f, 96f, twinkle, 4.5f, 2.6f);
+            AddTwinkle(roots[3], 3, 84f, 76f, 84f, twinkle, 5.5f, 3.4f);
+            AddTwinkle(roots[3], 4, 130f, 82f, 88f, twinkle, 4f, 2.0f);
+            AddTwinkle(roots[3], 5, 174f, 64f, 80f, twinkle, 6.5f, 2.9f);
+            Color streakGold = new Color(1f, 1f, 1f, 0.85f);
+            AddFall(roots[3], "Streak_0", 44f, 18f, 150f, streak, streakGold, 200f, 560f, 10f, 0.6f);
+            AddFall(roots[3], "Streak_1", 96f, 10f, 120f, streak, streakGold, 260f, 620f, 8f, 2.2f);
+            AddFall(roots[3], "Streak_2", 142f, 22f, 170f, streak, streakGold, 170f, 520f, 12f, 3.9f);
+            AddFall(roots[3], "Streak_3", 188f, 12f, 130f, streak, streakGold, 230f, 600f, 9f, 5.1f);
 
-            Debug.Log("[IntroCutsceneBuilder] beat overlays built: " +
-                      "5 entrance twinkles, 6 collapse dust motes, 6 star-swarm twinkles");
+            // Beat 4 — descent: the depths breathe (layered warm glows) and
+            // faint embers rise past the ledge.
+            AddGlow(roots[4], "DepthGlow_Far", 120f, 132f, 520f, glow,
+                    new Color(0.55f, 0.33f, 0.14f, 0.22f), 0.06f, 0.5f);
+            AddGlow(roots[4], "DepthGlow_Mid", 119f, 133f, 300f, glow,
+                    new Color(0.85f, 0.55f, 0.22f, 0.20f), 0.09f, 0.8f);
+            AddGlow(roots[4], "DepthGlow_Core", 119f, 135f, 150f, glow,
+                    new Color(1f, 0.72f, 0.35f, 0.22f), 0.12f, 1.1f);
+            Color ember = new Color(0.95f, 0.70f, 0.40f, 0.28f);
+            AddFall(roots[4], "Ember_0", 100f, 110f, 26f, dust, ember, -26f, 260f, 7f, 0.9f);
+            AddFall(roots[4], "Ember_1", 138f, 118f, 20f, dust, ember, -34f, 300f, 5f, 2.6f);
+            AddTwinkle(roots[4], 0, 122f, 96f, 40f, twinkle, 4f, 2.1f);
+            AddTwinkle(roots[4], 1, 96f, 78f, 30f, twinkle, 5f, 3.2f);
+
+            // Beat 5 — resolve: their path down glows faintly; the heroes'
+            // own light holds a twinkle each; one mote drifts up between.
+            AddGlow(roots[5], "PathGlow", 138f, 122f, 240f, glow,
+                    new Color(0.80f, 0.50f, 0.24f, 0.14f), 0.08f, 0.55f);
+            AddTwinkle(roots[5], 0, 103f, 84f, 30f, twinkle, 3.5f, 1.8f);
+            AddTwinkle(roots[5], 1, 137f, 84f, 30f, twinkle, 4.2f, 2.4f);
+            AddFall(roots[5], "Mote_0", 120f, 100f, 18f, dust,
+                    new Color(0.9f, 0.8f, 0.7f, 0.20f), -18f, 220f, 6f, 1.2f);
+
+            Debug.Log("[IntroCutsceneBuilder] beat overlays built for 6 beats " +
+                      "(approach/entrance/collapse/scatter/descent/resolve)");
             return roots;
         }
 
@@ -269,6 +349,56 @@ namespace Escape.EditorAutomation
             pulse.fps = fps;
             pulse.scaleAmplitude = 0.12f;
             pulse.speed = speed;
+        }
+
+        /// <summary>Soft light source (tinted cutscene_glow) with a gentle
+        /// UIPulse breathing scale. Alpha lives in the tint.</summary>
+        static void AddGlow(RectTransform root, string name, float cx, float cy,
+                            float size, Sprite glow, Color tint,
+                            float pulseAmp, float pulseSpeed)
+        {
+            Image img = PlateChild(name, root, cx, cy, size)
+                .gameObject.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.preserveAspect = true;
+            img.color = tint;
+            if (glow == null)
+            {
+                img.gameObject.SetActive(false);
+                return;
+            }
+            img.sprite = glow;
+            UIPulse pulse = img.gameObject.AddComponent<UIPulse>();
+            pulse.scaleAmplitude = pulseAmp;
+            pulse.speed = pulseSpeed;
+        }
+
+        /// <summary>Falling / rising element driven by UIDrift (canvas
+        /// units: positive fall drops, negative rises; wraps every `wrap`
+        /// units so the motion loops for as long as the beat holds).</summary>
+        static void AddFall(RectTransform root, string name, float cx, float cy,
+                            float size, Sprite sprite, Color tint,
+                            float fallSpeed, float wrap, float sway, float phase)
+        {
+            Image img = PlateChild(name, root, cx, cy, size)
+                .gameObject.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.preserveAspect = true;
+            img.color = tint;
+            if (sprite == null)
+            {
+                img.gameObject.SetActive(false);
+                return;
+            }
+            img.sprite = sprite;
+            UIDrift drift = img.gameObject.AddComponent<UIDrift>();
+            drift.fallSpeed = fallSpeed;
+            drift.wrapHeight = wrap;
+            drift.swayX = sway;
+            drift.swayY = sway * 0.4f;
+            drift.swaySpeed = 0.6f;
+            drift.phase = phase;
+            drift.fadeInSeconds = 0.4f;
         }
 
         /// <summary>Soft warm dust mote (tinted cutscene_dust, low alpha) —

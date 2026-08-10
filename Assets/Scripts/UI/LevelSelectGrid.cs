@@ -28,7 +28,7 @@ public class LevelSelectGrid : MonoBehaviour
             grid.childAlignment = TextAnchor.MiddleCenter;
         }
 
-        for (int level = 1; level <= SceneRouter.LevelCount; level++)
+        for (int level = SceneRouter.FirstLevel; level <= SceneRouter.LevelCount; level++)
             BuildTile(level, level <= highest, level == justCompleted);
     }
 
@@ -81,7 +81,7 @@ public class LevelSelectGrid : MonoBehaviour
         GameObject labelObj = new GameObject("Num", typeof(RectTransform));
         labelObj.transform.SetParent(tile.transform, false);
         var label = labelObj.AddComponent<TextMeshProUGUI>();
-        label.text = level.ToString();
+        label.text = SceneRouter.DisplayNumber(level).ToString();
         label.fontSize = 84;
         label.alignment = TextAlignmentOptions.Center;
         label.color = unlocked ? Color.white : new Color(1f, 1f, 1f, 0.25f);

@@ -37,8 +37,12 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: 8c504e849dcc64dd6a8369f575cfd3fb, type: 3}
   - id: powerup
     clip: {fileID: 8300000, guid: 77d580bb44bb84d9aa541f826d604cda, type: 3}
+  - id: rumble
+    clip: {fileID: 8300000, guid: 9650190ce40b94abfba26b5d03544c28, type: 3}
   - id: shoot
     clip: {fileID: 8300000, guid: 06caee3fe2e3a4fe088c9a75def148fb, type: 3}
+  - id: star_chime
+    clip: {fileID: 8300000, guid: 97d92a32b051e42d7ae918b9e7d1eb09, type: 3}
   - id: swap
     clip: {fileID: 8300000, guid: e20cf627305724fac87a9e444a5c8c65, type: 3}
   - id: ui_tap

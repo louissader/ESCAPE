@@ -1,0 +1,10 @@
+{
+  "frameWidth": 960,
+  "frameHeight": 540,
+  "frames": [
+    {
+      "name": "plate_0",
+      "index": 0
+    }
+  ]
+}

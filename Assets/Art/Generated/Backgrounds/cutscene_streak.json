@@ -1,0 +1,10 @@
+{
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "frames": [
+    {
+      "name": "streak_0",
+      "index": 0
+    }
+  ]
+}

@@ -932,7 +932,9 @@ namespace Escape.EditorAutomation
         /// </summary>
         static void BuildHints(LevelDefinition def, GameObject holder)
         {
-            if (def.levelNumber == 1)
+            // The onboarding chain follows the shipped progression's first
+            // level (legacy 1-3 are disabled via SceneRouter.FirstLevel).
+            if (def.levelNumber == SceneRouter.FirstLevel)
             {
                 AddHint(holder, "Hold ◀ ▶ to move, tap A to jump\n(tap A again mid-air!)",
                     World(def.player1Spawn) + new Vector3(2, 0, 0), false, false);

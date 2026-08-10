@@ -26,15 +26,24 @@ using TMPro;
 /// while the rect ratio matches the art), the caption TMP, a blackout Image whose
 /// CanvasGroup is `fader` (alpha 1 = black, drawn above the plate), and a
 /// skip Button assigned to `skipButton` (Awake hooks its onClick). plates =
-/// cutscene_entrance / cutscene_collapse / cutscene_stars / cutscene_resolve
-/// plate_0 sprites, in that order; captions default below. It also builds
-/// the hidden controls explainer (postCutscenePanel + letsGoButton).
+/// cutscene_approach / entrance / collapse / stars / descent / resolve
+/// plate_0 sprites, in that order (CollapseBeat/StarScatterBeat index into
+/// THIS order); captions default below. It also builds the hidden controls
+/// explainer (postCutscenePanel + letsGoButton) and the narration source.
 /// </summary>
 public class IntroCutscene : MonoBehaviour
 {
     const float AutoAdvanceSeconds = 4.5f;
     const float CrossfadeSeconds = 0.4f;
     const float CharsPerSecond = 30f;
+    // Voice-over: a narrated beat holds until the line finishes (+ breath).
+    const float VoiceTailSeconds = 0.8f;
+    const float VoiceDuck = 0.55f;
+    // Collapse beat (index into plates/captions): plate shake + rumble.
+    const int CollapseBeat = 2;
+    const int StarScatterBeat = 3;
+    const float ShakeSeconds = 1.2f;
+    const float ShakeAmplitude = 10f;  // canvas units, decays to 0
 
     // Ken-Burns drift (Playtest 6): ~4% zoom per beat, alternating in/out,
     // with a pan that grows with the zoom margin so the plate never
@@ -52,11 +61,21 @@ public class IntroCutscene : MonoBehaviour
     public string[] captions =
     {
         "Two friends chased a legend: a cave full of fallen stars.",
+        "They found the way in.",
         "The mountain had other plans.",
         "The stars scattered into the deep... every last one.",
+        "Deeper than any map had dared to go.",
         "The only way out is down. Together."
     };
     public Button skipButton;
+
+    // Per-beat narration (index == beat; entries may be null). Played on a
+    // scene-local source so the cutscene narrates even when the persistent
+    // AudioManager doesn't exist (direct scene play in the editor). The
+    // narration AUDIO says more than the on-screen caption — see
+    // tools/vogen/generate_vo.sh, the source of truth for the spoken lines.
+    public AudioClip[] beatVoiceOvers;
+    public AudioSource voiceSource;
 
     // First-run controls explainer (built by IntroCutsceneBuilder; optional
     // — when null the old straight-to-Level-1 behavior applies).
@@ -121,6 +140,14 @@ public class IntroCutscene : MonoBehaviour
         StartCoroutine(RunBeats());
     }
 
+    void OnDestroy()
+    {
+        // The duck must never outlive the cutscene (AudioManager persists
+        // across scenes; Finish() covers every normal path, this the rest).
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.SetDuck(1f);
+    }
+
     void Update()
     {
         // The explainer can also close via Escape / Android back
@@ -136,20 +163,49 @@ public class IntroCutscene : MonoBehaviour
 
     /// <summary>Unscaled Ken-Burns drift on the plate: even beats zoom in,
     /// odd beats open zoomed and pull back; the pan direction flips every
-    /// two beats. Pure RectTransform writes — no per-frame allocation.</summary>
+    /// two beats. The collapse beat adds a decaying two-axis shake on top.
+    /// Pure RectTransform writes — no per-frame allocation.</summary>
     void UpdatePlateMotion()
     {
         if (plateRect == null || beatIndex < 0 || finished)
             return;
-        float u = Mathf.Clamp01((Time.unscaledTime - beatStart) /
-                                (AutoAdvanceSeconds + CrossfadeSeconds));
+        float elapsed = Time.unscaledTime - beatStart;
+        float u = Mathf.Clamp01(elapsed / (BeatSeconds(beatIndex) + CrossfadeSeconds));
         bool zoomIn = (beatIndex & 1) == 0;
         float zoomFrac = zoomIn ? u : 1f - u;    // 0 => rest scale, 1 => full zoom
         float s = 1f + KenBurnsZoom * zoomFrac;
-        plateRect.localScale = new Vector3(s, s, 1f);
         float dir = ((beatIndex >> 1) & 1) == 0 ? 1f : -1f;
-        plateRect.anchoredPosition = plateBasePos +
+        Vector2 pos = plateBasePos +
             new Vector2(dir * KenBurnsPanX * zoomFrac, -KenBurnsPanY * zoomFrac);
+
+        if (beatIndex == CollapseBeat && elapsed < ShakeSeconds)
+        {
+            // Incommensurate sinusoids read as rough noise; linear decay.
+            // The extra scale keeps the plate covering the screen while it
+            // shakes: per-side margin needs >= amp in X (0.016/2*1920 ≈ 15)
+            // and >= 0.7*amp in Y (0.016/2*1080 ≈ 8.6) — the beat starts at
+            // rest scale, so Ken-Burns margin alone is ~zero here.
+            float decay = 1f - elapsed / ShakeSeconds;
+            float amp = ShakeAmplitude * decay;
+            s *= 1f + 0.016f * decay;
+            pos += new Vector2(
+                Mathf.Sin(elapsed * 47f) * amp,
+                Mathf.Sin(elapsed * 61f + 1.3f) * amp * 0.7f);
+        }
+        plateRect.localScale = new Vector3(s, s, 1f);
+        plateRect.anchoredPosition = pos;
+    }
+
+    /// <summary>How long a beat holds before auto-advancing: the narration
+    /// length (+ a breath) when this beat has a voice line, else the flat
+    /// default. Tap always advances immediately regardless.</summary>
+    float BeatSeconds(int beat)
+    {
+        if (beatVoiceOvers != null && beat >= 0 && beat < beatVoiceOvers.Length &&
+            beatVoiceOvers[beat] != null)
+            return Mathf.Max(AutoAdvanceSeconds,
+                             beatVoiceOvers[beat].length + VoiceTailSeconds);
+        return AutoAdvanceSeconds;
     }
 
     /// <summary>Slow Lissajous drift for the collapse-beat dust motes.
@@ -172,17 +228,50 @@ public class IntroCutscene : MonoBehaviour
         }
     }
 
-    /// <summary>Per-beat setup: restarts the Ken-Burns clock and shows only
-    /// this beat's overlay root (stars / dust). Null-safe when unwired.</summary>
+    /// <summary>Per-beat setup: restarts the Ken-Burns clock, shows only
+    /// this beat's overlay root, starts its narration and accent SFX.
+    /// Null-safe when unwired.</summary>
     void BeginBeat(int beat)
     {
         beatIndex = beat;
         beatStart = Time.unscaledTime;
-        if (beatOverlayRoots == null)
+        if (beatOverlayRoots != null)
+            for (int i = 0; i < beatOverlayRoots.Length; i++)
+                if (beatOverlayRoots[i] != null)
+                    beatOverlayRoots[i].gameObject.SetActive(i == beat);
+
+        PlayVoice(beat);
+        // Beat accents (no-ops when the persistent AudioManager is absent).
+        if (beat == CollapseBeat)
+            AudioManager.PlaySfx("rumble");
+        else if (beat == StarScatterBeat)
+            AudioManager.PlaySfx("star_chime");
+    }
+
+    void PlayVoice(int beat)
+    {
+        if (voiceSource == null)
             return;
-        for (int i = 0; i < beatOverlayRoots.Length; i++)
-            if (beatOverlayRoots[i] != null)
-                beatOverlayRoots[i].gameObject.SetActive(i == beat);
+        voiceSource.Stop();
+        AudioClip clip = beatVoiceOvers != null && beat >= 0 &&
+                         beat < beatVoiceOvers.Length ? beatVoiceOvers[beat] : null;
+        if (clip == null)
+            return;
+        voiceSource.clip = clip;
+        voiceSource.volume = SaveSystem.SfxVolume;
+        voiceSource.Play();
+        // Narration sits above the music for the whole cutscene; Finish()
+        // restores the duck (single set per beat — cheap and idempotent).
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.SetDuck(VoiceDuck);
+    }
+
+    void StopVoice()
+    {
+        if (voiceSource != null)
+            voiceSource.Stop();
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.SetDuck(1f);
     }
 
     IEnumerator RunBeats()
@@ -233,7 +322,7 @@ public class IntroCutscene : MonoBehaviour
                         advance = true;
                     }
                 }
-                if (beatTimer >= AutoAdvanceSeconds)
+                if (beatTimer >= BeatSeconds(i))
                     advance = true;
 
                 yield return null;
@@ -241,6 +330,13 @@ public class IntroCutscene : MonoBehaviour
 
             if (finished)
                 yield break;
+
+            // Cut the narration at the moment of advance — letting it run
+            // through the crossfade only to be chopped mid-word by the next
+            // beat's PlayVoice sounds broken. (No-op on natural advance:
+            // BeatSeconds guarantees the line already ended.)
+            if (voiceSource != null)
+                voiceSource.Stop();
 
             if (i < beatCount - 1)
                 yield return Fade(0f, 1f);
@@ -305,6 +401,7 @@ public class IntroCutscene : MonoBehaviour
             return;
         finished = true;
         StopAllCoroutines();
+        StopVoice();   // coroutines die silently — the narration must too
 
         // Freeze the drift and drop the beat overlays — nothing may keep
         // twinkling behind the explainer / during the scene hand-off.
@@ -334,7 +431,7 @@ public class IntroCutscene : MonoBehaviour
             return;
         }
 
-        SceneRouter.LoadLevel(1);   // unmigrated scene: old direct path
+        SceneRouter.LoadLevel(SceneRouter.FirstLevel);   // unmigrated scene: old direct path
     }
 
     /// <summary>LET'S GO button handler (hooked in Awake).</summary>
@@ -349,6 +446,6 @@ public class IntroCutscene : MonoBehaviour
         if (proceeding)
             return;
         proceeding = true;
-        SceneRouter.LoadLevel(1);
+        SceneRouter.LoadLevel(SceneRouter.FirstLevel);
     }
 }

@@ -24,20 +24,43 @@ public class SaveSystemTests
     }
 
     [Test]
-    public void FreshInstall_StartsWithLevel1Unlocked()
+    public void FreshInstall_StartsAtFirstLevel()
     {
         SaveSystem.Migrate();
-        Assert.AreEqual(1, SaveSystem.HighestUnlockedLevel);
+        Assert.AreEqual(SceneRouter.FirstLevel, SaveSystem.HighestUnlockedLevel,
+            "fresh saves start at the shipped progression's first level " +
+            "(legacy 1-3 are disabled via SceneRouter.FirstLevel)");
     }
 
     [Test]
     public void LegacyKey_MigratesToNewSemantics()
     {
-        // Legacy unlockedCount=2 meant levels 1-3 playable.
+        // Legacy unlockedCount=2 -> raw highest 3. The getter floors to
+        // FirstLevel at read time; the expectation is written so it stays
+        // correct when FirstLevel reverts to 1 (raw 3 then reads back as 3).
         PlayerPrefs.SetInt("unlockedCount", 2);
         SaveSystem.Migrate();
-        Assert.AreEqual(3, SaveSystem.HighestUnlockedLevel);
+        Assert.AreEqual(Mathf.Max(3, SceneRouter.FirstLevel), SaveSystem.HighestUnlockedLevel);
+        Assert.AreEqual(3, PlayerPrefs.GetInt("escape.highestUnlocked", -1),
+            "raw migrated value must be PRESERVED (floor applies only at read " +
+            "time) so re-enabling levels 1-3 restores real progress");
         Assert.IsFalse(PlayerPrefs.HasKey("unlockedCount"), "legacy key must be consumed");
+    }
+
+    [Test]
+    public void HighestUnlocked_FloorsToFirstLevel()
+    {
+        PlayerPrefs.SetInt("escape.highestUnlocked", 1);
+        Assert.AreEqual(SceneRouter.FirstLevel, SaveSystem.HighestUnlockedLevel,
+            "stale saves below FirstLevel must floor up, never route to a disabled level");
+    }
+
+    [Test]
+    public void HighestUnlocked_ClampsToLevelCount()
+    {
+        PlayerPrefs.SetInt("escape.highestUnlocked", 99);
+        Assert.AreEqual(SceneRouter.LevelCount, SaveSystem.HighestUnlockedLevel,
+            "a corrupt/stale save must never route to a scene past the last level");
     }
 
     [Test]
@@ -55,19 +78,19 @@ public class SaveSystemTests
     public void CompletingALevel_UnlocksOnlyTheNext()
     {
         SaveSystem.Migrate();
-        SaveSystem.OnLevelCompleted(1);
-        Assert.AreEqual(2, SaveSystem.HighestUnlockedLevel);
+        SaveSystem.OnLevelCompleted(SceneRouter.FirstLevel);
+        Assert.AreEqual(SceneRouter.FirstLevel + 1, SaveSystem.HighestUnlockedLevel);
     }
 
     [Test]
     public void ReplayingAnOldLevel_NeverOverUnlocks_B2()
     {
         SaveSystem.Migrate();
-        SaveSystem.OnLevelCompleted(1);
-        SaveSystem.OnLevelCompleted(1);
-        SaveSystem.OnLevelCompleted(1);
-        Assert.AreEqual(2, SaveSystem.HighestUnlockedLevel,
-            "replaying level 1 three times must not unlock level 3+");
+        SaveSystem.OnLevelCompleted(SceneRouter.FirstLevel);
+        SaveSystem.OnLevelCompleted(SceneRouter.FirstLevel);
+        SaveSystem.OnLevelCompleted(SceneRouter.FirstLevel);
+        Assert.AreEqual(SceneRouter.FirstLevel + 1, SaveSystem.HighestUnlockedLevel,
+            "replaying the first level three times must not unlock further levels");
     }
 
     [Test]
