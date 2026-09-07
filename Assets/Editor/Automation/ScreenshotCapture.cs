@@ -1,4 +1,5 @@
 using System.IO;
+using Escape.Automation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -6,71 +7,84 @@ using UnityEngine;
 namespace Escape.EditorAutomation
 {
     /// <summary>
-    /// Headless world-render captures of every level (no HUD — screen-space
-    /// canvases don't render through camera RTs): one 1920x1080 QA shot per
-    /// level framed on the spawn area, plus store-resolution candidates for
-    /// the three showcase levels. Written to StoreAssets/.
+    /// Edit-mode capture of every shipped level, WITH the HUD and touch
+    /// controls (StoreScreenshotRig flips the screen-space-overlay canvases
+    /// into camera space for the render — a plain camera RenderTexture never
+    /// contains them, which is why the images uploaded for 1.1.0 were bare
+    /// world renders and drew the Guideline 2.3.3 rejection).
+    ///
+    /// This path is a QA convenience: nothing has run, so it shows the
+    /// AUTHORED state of the scene, not a played one — no parked-hero dimming,
+    /// no HP drain, no cutscene/tutorial state, no Cinemachine framing. The
+    /// files it writes are prefixed "editor_" for that reason.
+    ///
+    /// THE SET YOU UPLOAD comes from the play-mode capture, which runs the
+    /// real game:  Window > General > Test Runner > PlayMode >
+    /// ScreenshotTests.CaptureEveryLevel  (writes StoreAssets/store_*.png).
     /// </summary>
     public static class ScreenshotCapture
     {
-        [MenuItem("Escape/Capture Level Screenshots")]
+        [MenuItem("Escape/Capture Level Screenshots (edit mode QA)")]
         public static void Run()
         {
-            Directory.CreateDirectory("StoreAssets");
+            Directory.CreateDirectory(StoreScreenshotRig.OutputDirectory);
 
-            for (int level = 1; level <= SceneRouter.LevelCount; level++)
+            var specs = new ScreenshotSpec[StoreScreenshotRig.StoreSpecs.Length + 1];
+            StoreScreenshotRig.StoreSpecs.CopyTo(specs, 0);
+            specs[specs.Length - 1] = StoreScreenshotRig.Qa1080;
+
+            // Shipped progression only, named by the number PLAYERS see —
+            // identical range and naming to ScreenshotTests, so neither file
+            // has to change when SceneRouter.FirstLevel does.
+            for (int level = SceneRouter.FirstLevel; level <= SceneRouter.LevelCount; level++)
             {
-                string path = $"Assets/Scenes/Level {level}.unity";
-                EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+                string scene = $"Assets/Scenes/{SceneRouter.LevelSceneName(level)}.unity";
+                EditorSceneManager.OpenScene(scene, OpenSceneMode.Single);
 
                 Camera cam = Camera.main;
                 if (cam == null)
                 {
-                    Debug.LogError($"[Screenshot] no camera in {path}");
+                    Debug.LogError($"[Screenshot] no camera in {scene}");
                     continue;
                 }
 
-                // Frame on the players' spawn area (vcam doesn't run in edit mode).
-                GameObject p1 = GameObject.Find("Player1");
-                Vector3 focus = p1 != null ? p1.transform.position : Vector3.zero;
-                cam.transform.position = new Vector3(focus.x + 8f, focus.y + 4f, -10f);
-                cam.orthographicSize = 8f;
+                int display = SceneRouter.DisplayNumber(level);
 
-                Capture(cam, 1920, 1080, $"StoreAssets/qa_level{level}.png");
-
-                if (level == 1 || level == 5 || level == 8)
+                foreach (ScreenshotSpec spec in specs)
                 {
-                    Capture(cam, 2868, 1320, $"StoreAssets/iphone69_level{level}.png");
-                    Capture(cam, 2752, 2064, $"StoreAssets/ipad13_level{level}.png");
+                    // try/finally on both: an exception must not leave this
+                    // scene's canvases in camera space or the camera moved.
+                    StoreScreenshotRig.CaptureSession session =
+                        StoreScreenshotRig.Begin(cam, spec);
+                    try
+                    {
+                        // The virtual camera doesn't run in edit mode, so frame
+                        // the pair directly — clamped to the level's
+                        // CameraBounds, which is what stops a capture showing
+                        // the black void outside the level (the old +8/+4 offset
+                        // at ortho 8 put roughly a fifth of the frame there).
+                        StoreScreenshotRig.CameraFraming framing =
+                            StoreScreenshotRig.FrameOnHeroes(cam);
+                        try
+                        {
+                            session.Write(StoreScreenshotRig.PathFor(spec, "editor", display));
+                        }
+                        finally
+                        {
+                            framing.Dispose();
+                        }
+                    }
+                    finally
+                    {
+                        session.Dispose();
+                    }
                 }
             }
-            Debug.Log("[Screenshot] captures complete → StoreAssets/");
-        }
 
-        static void Capture(Camera cam, int width, int height, string file)
-        {
-            var rt = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32);
-            var prevTarget = cam.targetTexture;
-            var prevActive = RenderTexture.active;
-            try
-            {
-                cam.targetTexture = rt;
-                cam.Render();
-                RenderTexture.active = rt;
-                var tex = new Texture2D(width, height, TextureFormat.RGB24, false);
-                tex.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-                tex.Apply();
-                File.WriteAllBytes(file, tex.EncodeToPNG());
-                Object.DestroyImmediate(tex);
-                Debug.Log($"[Screenshot] {file} ({width}x{height})");
-            }
-            finally
-            {
-                cam.targetTexture = prevTarget;
-                RenderTexture.active = prevActive;
-                rt.Release();
-                Object.DestroyImmediate(rt);
-            }
+            Debug.LogWarning("[Screenshot] edit-mode QA captures written to " +
+                             StoreScreenshotRig.OutputDirectory + "/editor_*.png. " +
+                             "These show the AUTHORED scene, not a played one — upload the " +
+                             "store_*.png set from the play-mode ScreenshotTests instead.");
         }
     }
 }

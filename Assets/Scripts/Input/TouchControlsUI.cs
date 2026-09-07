@@ -38,8 +38,6 @@ public class TouchControlsUI : MonoBehaviour
 
     void Start()
     {
-        mode = ControlModeResolver.Resolve();
-
         // Stand down while a modal owns the screen. This canvas renders at
         // sortingOrder 100, above GameplayUI's 90, so without this it eats
         // every tap aimed at the pause/settings/win/fail buttons (fully
@@ -52,28 +50,21 @@ public class TouchControlsUI : MonoBehaviour
         ModalGuard.OnModalChanged += ApplyModalState;
         ApplyModalState(ModalGuard.IsModalOpen);
 
-        if (swapLayout != null)
-            swapLayout.SetActive(mode == ControlMode.Swap);
-        if (coopLayout != null)
-            coopLayout.SetActive(mode == ControlMode.Coop);
+        // Wire BOTH layouts once. The two sets are different buttons living
+        // under different parents, so the inactive layout can never fire —
+        // and wiring once here means ApplyMode() can be re-run live without
+        // AddListener stacking duplicate callbacks.
+        Wire(swapJump, () => ActiveChannel().PressJump());
+        Wire(swapAction, () => ActiveChannel().PressAction());
+        Wire(swapSwap, RequestSwap);
+        Wire(p1Jump, () => VirtualInputRouter.Get(1).PressJump());
+        Wire(p1Action, () => VirtualInputRouter.Get(1).PressAction());
+        Wire(p2Jump, () => VirtualInputRouter.Get(2).PressJump());
+        Wire(p2Action, () => VirtualInputRouter.Get(2).PressAction());
 
-        // Press edges latch into the channel that owns the button NOW.
-        if (mode == ControlMode.Swap)
-        {
-            Wire(swapJump, () => ActiveChannel().PressJump());
-            Wire(swapAction, () => ActiveChannel().PressAction());
-            Wire(swapSwap, RequestSwap);
-        }
-        else
-        {
-            Wire(p1Jump, () => VirtualInputRouter.Get(1).PressJump());
-            Wire(p1Action, () => VirtualInputRouter.Get(1).PressAction());
-            Wire(p2Jump, () => VirtualInputRouter.Get(2).PressJump());
-            Wire(p2Action, () => VirtualInputRouter.Get(2).PressAction());
-        }
-
+        ApplyMode();
+        SaveSystem.OnControlModeChanged += OnControlModeChanged;
         SwapModeController.OnSwapped += OnSwapped;
-        UpdateSwapButtonVisibility();
 
 #if !UNITY_EDITOR
         if (!Application.isMobilePlatform)
@@ -85,6 +76,28 @@ public class TouchControlsUI : MonoBehaviour
     {
         SwapModeController.OnSwapped -= OnSwapped;
         ModalGuard.OnModalChanged -= ApplyModalState;
+        SaveSystem.OnControlModeChanged -= OnControlModeChanged;
+    }
+
+    /// <summary>Re-resolves the mode and swaps the visible layout. Safe to
+    /// call repeatedly; button listeners are wired once in Start().</summary>
+    void ApplyMode()
+    {
+        mode = ControlModeResolver.Resolve();
+        if (swapLayout != null)
+            swapLayout.SetActive(mode == ControlMode.Swap);
+        if (coopLayout != null)
+            coopLayout.SetActive(mode == ControlMode.Coop);
+        UpdateSwapButtonVisibility();
+    }
+
+    void OnControlModeChanged()
+    {
+        // Drop any half-pressed input from the layout being torn down,
+        // otherwise a held button latches into the new layout.
+        VirtualInputRouter.Get(1).Clear();
+        VirtualInputRouter.Get(2).Clear();
+        ApplyMode();
     }
 
     /// <summary>Hides the touch canvas and stops it eating raycasts while
@@ -110,6 +123,12 @@ public class TouchControlsUI : MonoBehaviour
         // never lifted (IsHeld persists through blocksRaycasts = false).
         if (ModalGuard.IsModalOpen)
             return;
+
+        // Re-check every frame: CanSwap flips back when a dead partner
+        // respawns (~2 s), and the respawn path fires no event. Without this
+        // the SWAP button vanished for the rest of the level after any death
+        // unless the player discovered tapping the inactive portrait.
+        UpdateSwapButtonVisibility();
 
         if (mode == ControlMode.Swap)
         {
@@ -159,9 +178,11 @@ public class TouchControlsUI : MonoBehaviour
 
     void UpdateSwapButtonVisibility()
     {
-        if (swapSwap == null || mode != ControlMode.Swap)
+        if (swapSwap == null)
             return;
-        bool canSwap = SwapModeController.Instance == null || SwapModeController.Instance.CanSwap;
-        swapSwap.gameObject.SetActive(canSwap);
+        bool canSwap = mode == ControlMode.Swap &&
+            (SwapModeController.Instance == null || SwapModeController.Instance.CanSwap);
+        if (swapSwap.gameObject.activeSelf != canSwap)
+            swapSwap.gameObject.SetActive(canSwap);
     }
 }

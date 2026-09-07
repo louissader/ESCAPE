@@ -513,7 +513,11 @@ namespace Escape.EditorAutomation
             rect.anchorMax = new Vector2(1, 1);
             rect.pivot = new Vector2(1, 1);
             rect.anchoredPosition = new Vector2(-48, -40);
-            rect.sizeDelta = new Vector2(240, 96);
+            // 96 -> 136 tall: 33.3 pt on an SE3 was under Apple's 44 pt
+            // floor, and SKIP is the only escape from the cutscene. Same
+            // 136-unit floor as Btn_Pause. Top-right corner, nothing within
+            // 240 units of it, so the visual rect can simply grow.
+            rect.sizeDelta = new Vector2(240, 136);
             img.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
             img.type = Image.Type.Sliced;
             img.color = new Color(0.13f, 0.35f, 0.46f, 0.8f);

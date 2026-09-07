@@ -28,12 +28,14 @@ public class GameHUD : MonoBehaviour
         player1 = PlayerCharacterOne.Get(1);
         player2 = PlayerCharacterTwo.Get(2);
         SwapModeController.OnSwapped += OnSwapped;
+        SaveSystem.OnControlModeChanged += RefreshActiveGlow;
         RefreshActiveGlow();
     }
 
     void OnDestroy()
     {
         SwapModeController.OnSwapped -= OnSwapped;
+        SaveSystem.OnControlModeChanged -= RefreshActiveGlow;
     }
 
     void Update()
@@ -70,8 +72,10 @@ public class GameHUD : MonoBehaviour
 
     void RefreshActiveGlow()
     {
-        bool swapMode = SwapModeController.Instance != null &&
-                        SwapModeController.Instance.Mode == ControlMode.Swap;
+        // Resolve directly: SwapModeController.mode is enum-default (Swap)
+        // until its Start() runs, and Start order between it and this HUD is
+        // undefined — trusting it lit a glow in desktop Co-op.
+        bool swapMode = ControlModeResolver.Resolve() == ControlMode.Swap;
         int active = VirtualInputRouter.ActivePlayerId;
         if (p1ActiveGlow != null)
             p1ActiveGlow.enabled = swapMode && active == 1;

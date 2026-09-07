@@ -16,16 +16,19 @@ public static class SceneRouter
     /// <summary>Total playable levels.</summary>
     public const int LevelCount = 8;
 
-    /// <summary>First level of the shipped progression. Legacy levels 1-3
-    /// are DISABLED, not deleted: set this back to 1 and rebake (Escape/Run
-    /// Master Pipeline) to restore them. Internal numbering never changes —
-    /// only what the player sees, via DisplayNumber.</summary>
-    public const int FirstLevel = 4;
+    /// <summary>First level of the shipped progression. All 8 levels ship
+    /// (reverted from 4 for the 1.2.0 App Store resubmission — a 5-level
+    /// campaign starting on mid-game content was a rejection risk). Raising
+    /// this disables the early levels without deleting them; rebake
+    /// (Escape/Run Playtest-Fix Pipeline) after any change. Internal
+    /// numbering never changes — only what the player sees, via
+    /// DisplayNumber.</summary>
+    public const int FirstLevel = 1;
 
     /// <summary>Number of levels in the shipped progression.</summary>
     public const int PlayableLevelCount = LevelCount - FirstLevel + 1;
 
-    /// <summary>Player-facing level number (internal 4-8 shows as 1-5).</summary>
+    /// <summary>Player-facing level number (identity while FirstLevel is 1).</summary>
     public static int DisplayNumber(int levelNumber)
     {
         return levelNumber - FirstLevel + 1;

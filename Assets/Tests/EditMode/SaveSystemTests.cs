@@ -29,7 +29,7 @@ public class SaveSystemTests
         SaveSystem.Migrate();
         Assert.AreEqual(SceneRouter.FirstLevel, SaveSystem.HighestUnlockedLevel,
             "fresh saves start at the shipped progression's first level " +
-            "(legacy 1-3 are disabled via SceneRouter.FirstLevel)");
+            "(SceneRouter.FirstLevel; 1 while the full campaign ships)");
     }
 
     [Test]

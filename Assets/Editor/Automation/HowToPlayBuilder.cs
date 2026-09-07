@@ -19,14 +19,15 @@ namespace Escape.EditorAutomation
     /// panel, and TitleScreenBuilder wires the panel this pass creates.
     /// Idempotent: panel/button objects are rebuilt by name.
     ///
-    /// Copy is TOUCH-FIRST: this builder bakes static text while ControlMode
-    /// (Swap on phones, Coop on tablets) is only resolved at runtime, so the
-    /// card leads with the on-screen controls (arrows / A / B / SWAP / II)
-    /// and keeps the keyboard bindings as parentheticals for desktop/editor.
-    /// Those bindings are the ACTUAL ones: PlayerControlsOne hardcodes EMBER
-    /// to the arrow keys (jump = Up) + Space; Player2.prefab serializes WISP
-    /// to A/D + W jump + E action. There is no keyboard swap key — swap is
-    /// the touch button or tapping a portrait (GameHUD.OnPortrait*Tapped).
+    /// Copy is TOUCH-ONLY: this builder bakes static text while ControlMode
+    /// is only resolved at runtime, so the card describes the on-screen
+    /// controls and nothing else. Keyboard bindings are deliberately NOT
+    /// mentioned — this text ships in the iOS/Android build, where telling
+    /// the player about ARROW KEYS + SPACE is both wrong and, on an iPad,
+    /// the kind of thing that draws a Guideline 4 design rejection. Desktop
+    /// builds (BuildScript.BuildLocal) are dev-only. There is no keyboard
+    /// swap key regardless — swap is the touch button or tapping a portrait
+    /// (GameHUD.OnPortrait*Tapped).
     /// </summary>
     public static class HowToPlayBuilder
     {
@@ -66,12 +67,14 @@ namespace Escape.EditorAutomation
                 // Panel last under SafeArea so it draws above the overlay.
                 HowToPlayPanel panel = BuildPanel((RectTransform)safeArea);
 
-                // Fifth pause row, below LEVEL SELECT (HUDBuilder stacks at 120 - i*120).
+                // Fifth pause row, below LEVEL SELECT. HUDBuilder stacks at
+                // 216 - i*144 with 560x136 rows, so row 5 is y -360 and the
+                // size must match or this row alone stays under 44 pt.
                 Transform oldBtn = overlay.Find("Btn_HowToPlay");
                 if (oldBtn != null)
                     Object.DestroyImmediate(oldBtn.gameObject);
                 Button open = MakeTextButton((RectTransform)overlay, "Btn_HowToPlay", "HOW TO PLAY",
-                    new Vector2(0, -360), new Vector2(560, 96));
+                    new Vector2(0, -360), new Vector2(560, 136));
                 UnityEventTools.AddPersistentListener(open.onClick, panel.Open);
 
                 PrefabUtility.SaveAsPrefabAsset(root, HudPrefabPath);
@@ -141,11 +144,11 @@ namespace Escape.EditorAutomation
             MakeLabel(panelRect, "Title", "HOW TO PLAY", 64, new Vector2(0, 420), 1600);
 
             HeroRow(panelRect, "Basics", "CONTROLS", new Color(0.8f, 0.85f, 0.9f), 300,
-                "on-screen arrows move   -   hold A to jump higher, tap again in mid-air   -   II pauses");
+                "on-screen < > move   -   hold A to jump higher, tap again in mid-air   -   the top-right button pauses");
             HeroRow(panelRect, "Ember", "EMBER", EmberColor, 210,
-                "tap B to shoot a fireball (needs a red orb)   -   keyboard: ARROW KEYS + SPACE");
+                "tap B to shoot a fireball (needs a red orb)");
             HeroRow(panelRect, "Wisp", "WISP", WispColor, 120,
-                "tap B to become a platform (needs a blue orb)   -   keyboard: A / D + W + E");
+                "tap B to become a platform (needs a blue orb)");
             HeroRow(panelRect, "Swap", "ONE PLAYER", new Color(1f, 0.9f, 0.4f), 30,
                 "tap SWAP or the other hero's portrait to switch - the waiting hero is safe");
             MakeLabel(panelRect, "Goal", "BOTH heroes must stand in their matching doors to escape!",
@@ -162,8 +165,12 @@ namespace Escape.EditorAutomation
                 LoadSpriteWithFallback("Assets/Art/Generated/Props/checkpoint_torch.png", "checkpoint_torch_lit_0"),
                 "respawn point", 500);
 
+            // 88 -> 136 tall (33.3 -> 47.2 pt on an SE3). Raised to y -370
+            // because a 136-tall button still centred on -420 would reach
+            // -488, past the bottom of the shortest safe canvas (-472); the
+            // legend row above ends at -225, so there is room to move up.
             Button close = MakeTextButton(panelRect, "Btn_Close", "GOT IT",
-                new Vector2(0, -420), new Vector2(360, 88));
+                new Vector2(0, -370), new Vector2(360, 136));
             UnityEventTools.AddPersistentListener(close.onClick, panel.Close);
 
             panelRect.gameObject.SetActive(false);

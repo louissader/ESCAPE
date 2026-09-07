@@ -33,7 +33,14 @@ def _speckle(img, rng, region, colors, n):
 
 
 def build_app_icon_64():
-    """64x64 composition: heroes back-to-back in a glowing cave mouth."""
+    """64x64 composition: heroes back-to-back in a glowing cave mouth.
+
+    Every y here is centred on cy=32 (the canvas midline). An earlier cy=37
+    pushed the whole disc down: 12px of dead rock above the cave mouth and
+    1px below it, which read as a bottom-heavy, off-centre icon at App Store
+    sizes. Shift elements together, never individually - the heroes' balance
+    inside the disc is already correct.
+    """
     rng = random.Random(64)
     d = blank(64, 64)
 
@@ -51,7 +58,7 @@ def build_app_icon_64():
     _speckle(d, rng, (0, 0, 64, 64), [stone_d, stone_d, stone_d, stone_l], 130)
 
     # carve the cave mouth (rough ellipse) into darkness
-    cx, cy, rx, ry = 32, 37, 26.0, 25.0
+    cx, cy, rx, ry = 32, 32, 26.0, 25.0
     jitter = [rng.uniform(-1.5, 1.5) for _ in range(64)]
     for y in range(64):
         for x in range(64):
@@ -71,7 +78,7 @@ def build_app_icon_64():
 
     # portal glow behind the heroes (posterized ellipse bands).
     # The white core sits high so it peeks out between the heroes' heads.
-    gx, gy, grx, gry = 32, 36, 14.0, 16.0
+    gx, gy, grx, gry = 32, 31, 14.0, 16.0
     for y in range(64):
         for x in range(64):
             if tuple(d[y, x]) != tuple(cave):
@@ -89,23 +96,23 @@ def build_app_icon_64():
                 d[y, x] = glow_dim
 
     # stone ledge the heroes stand on
-    for y in range(52, 58):
+    for y in range(47, 53):
         for x in range(8, 56):
             dx = (x - cx) / rx
             dy = (y - cy) / ry
             if dx * dx + dy * dy <= 1.05:
-                d[y, x] = stone_d if y > 52 else stone
-    _speckle(d, rng, (10, 53, 54, 58), [stone, stone_d], 30)
+                d[y, x] = stone_d if y > 47 else stone
+    _speckle(d, rng, (10, 48, 54, 53), [stone, stone_d], 30)
 
-    # heroes back-to-back on the ledge (feet on y=51)
+    # heroes back-to-back on the ledge (feet on y=46)
     ember, wisp = _heroes()
-    blit(d, ember, 15, 28)
-    blit(d, wisp, 33, 28)
+    blit(d, ember, 15, 23)
+    blit(d, wisp, 33, 23)
 
     # sparkles
     gold = hex_rgba("#f4c05a")
     mint = palette.WISP["highlight"]
-    for x, y, c in [(12, 22, gold), (50, 20, mint), (22, 16, white), (44, 44, mint), (18, 46, gold)]:
+    for x, y, c in [(12, 17, gold), (50, 15, mint), (22, 11, white), (44, 39, mint), (18, 41, gold)]:
         d[y, x] = c
         d[y - 1, x] = c
         d[y + 1, x] = c

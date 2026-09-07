@@ -12,7 +12,7 @@ namespace Escape.EditorAutomation
     public static class ConfigureMobileSettings
     {
         public const string BundleId = "com.louissader.escape";
-        public const string Version = "1.1.2";   // Build 4: UX polish + haptics (was 1.1.1)
+        public const string Version = "1.2.0";   // Build 5: iPad layout + store screenshots (was 1.1.2)
 
         [MenuItem("Escape/Configure Mobile Settings")]
         public static void Run()
@@ -23,14 +23,14 @@ namespace Escape.EditorAutomation
             PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, BundleId);
             PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.iOS, BundleId);
             PlayerSettings.bundleVersion = Version;
-            // Second store submission: build 2 / versionCode 2 (1.0.0 shipped
+            // Fifth store submission: build 5 / versionCode 5 (1.0.0 shipped
             // as 1). Read-first with a floor, never a blind increment — the
             // stores reject downgrades, and BuildScript calls Run() once per
             // platform build, so incrementing here would drift per run.
             int.TryParse(PlayerSettings.iOS.buildNumber, out int iosBuild);
-            PlayerSettings.iOS.buildNumber = Mathf.Max(4, iosBuild).ToString();
+            PlayerSettings.iOS.buildNumber = Mathf.Max(5, iosBuild).ToString();
             PlayerSettings.Android.bundleVersionCode =
-                Mathf.Max(4, PlayerSettings.Android.bundleVersionCode);
+                Mathf.Max(5, PlayerSettings.Android.bundleVersionCode);
 
             // Graphics: the project renders in LINEAR color space, but the
             // legacy Android API list included OpenGLES2 (incompatible —
@@ -55,7 +55,10 @@ namespace Escape.EditorAutomation
             PlayerSettings.Android.forceInternetPermission = false;
 
             // iOS.
-            PlayerSettings.iOS.targetOSVersionString = "13.0";
+            // 15.0: Apple warns on every upload that MinimumOSVersion must be
+            // >= 15.0 by Spring 2027. iOS 15 covers effectively the whole
+            // installed base in 2026.
+            PlayerSettings.iOS.targetOSVersionString = "15.0";
             PlayerSettings.iOS.targetDevice = iOSTargetDevice.iPhoneAndiPad;
             PlayerSettings.statusBarHidden = true;
             PlayerSettings.iOS.requiresFullScreen = true;

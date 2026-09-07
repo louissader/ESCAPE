@@ -207,8 +207,8 @@ namespace Escape.EditorAutomation
                 Vector3 basePos = p1 != null ? p1.transform.position : LegacyWorld(def.player1Spawn);
                 (string msg, Vector3 at, bool last)[] hints =
                 {
-                    ("Hold ◀ ▶ to move, tap A to jump\n(tap A again mid-air!)", basePos + new Vector3(2, 0, 0), false),
-                    ("Tap ⇄ (or your partner's portrait)\nto control the other hero", basePos + new Vector3(8, 0, 0), false),
+                    ("Hold < > to move, tap A to jump\n(tap A again mid-air!)", basePos + new Vector3(2, 0, 0), false),
+                    ("Tap the SWAP button (or your partner's portrait)\nto control the other hero", basePos + new Vector3(8, 0, 0), false),
                     ("BOTH heroes must stand in\ntheir matching doors to escape!", basePos + new Vector3(14, 0, 0), true),
                 };
                 foreach (var (msg, at, last) in hints)
@@ -936,9 +936,9 @@ namespace Escape.EditorAutomation
             // level (legacy 1-3 are disabled via SceneRouter.FirstLevel).
             if (def.levelNumber == SceneRouter.FirstLevel)
             {
-                AddHint(holder, "Hold ◀ ▶ to move, tap A to jump\n(tap A again mid-air!)",
+                AddHint(holder, "Hold < > to move, tap A to jump\n(tap A again mid-air!)",
                     World(def.player1Spawn) + new Vector3(2, 0, 0), false, false);
-                AddHint(holder, "Tap ⇄ (or your partner's portrait)\nto control the other hero",
+                AddHint(holder, "Tap the SWAP button (or your partner's portrait)\nto control the other hero",
                     World(def.player1Spawn) + new Vector3(8, 0, 0), false, false);
                 AddHint(holder, "BOTH heroes must stand in\ntheir matching doors to escape!",
                     World(def.exit1) + new Vector3(-6, 0, 0), false, true);

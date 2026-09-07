@@ -323,12 +323,17 @@ namespace Escape.EditorAutomation
             cardImg.color = new Color(0.05f, 0.11f, 0.15f, 0.97f);
 
             Sprite pill = LoadSprite(BtnSmallSheet, "btn_small_pill_0");
+            // 110 units is 38.2 pt on an SE3, under Apple's 44 pt floor.
+            // 136 (47.2 pt) is the project's tap-target floor; pitch goes
+            // 140 -> 144 so the taller rows keep a visible gap, and the
+            // stack still centres on 10 and stays inside the 560-tall card
+            // (top 222, bottom -202 against +/-280).
             Button cont = MakeSpriteButton(card, "Btn_Continue", "CONTINUE",
-                pill, new Vector2(0, 150), new Vector2(460, 110), 44);
+                pill, new Vector2(0, 154), new Vector2(460, 136), 44);
             Button story = MakeSpriteButton(card, "Btn_Story", "STORY",
-                pill, new Vector2(0, 10), new Vector2(460, 110), 44);
+                pill, new Vector2(0, 10), new Vector2(460, 136), 44);
             Button howTo = MakeSpriteButton(card, "Btn_HowToPlay", "HOW TO PLAY",
-                pill, new Vector2(0, -130), new Vector2(460, 110), 40);
+                pill, new Vector2(0, -134), new Vector2(460, 136), 40);
 
             Button close = MakeSpriteButton(card, "Btn_CloseSubmenu", "X",
                 pill, Vector2.zero, new Vector2(60, 60), 30);
@@ -337,6 +342,26 @@ namespace Escape.EditorAutomation
             closeRect.anchorMax = new Vector2(1f, 1f);
             closeRect.pivot = new Vector2(1f, 1f);
             closeRect.anchoredPosition = new Vector2(-16, -16);
+
+            // The 60x60 pill is 20.8 pt on an SE3. It cannot simply grow:
+            // a 136x136 rect centred on the card corner would cover the
+            // top-right corner of Btn_Continue (460x136 at y 154, so
+            // x -230..230, y 86..222) and, being the last sibling, would win
+            // that raycast. So the hit surface is an invisible 136x136 child
+            // - HUDBuilder's MakeTapArea idiom - offset +34/+34 up and
+            // right. It still contains the whole visible pill (x 234..294,
+            // y 204..264 in card space) but starts at x 230 / y 200, so it
+            // only touches Btn_Continue's corner instead of overlapping it.
+            // No Button of its own: pointer events bubble to the parent via
+            // ExecuteHierarchy, so the pill keeps its own press tint.
+            Image closeHit = NewRect("TapArea", closeRect).gameObject.AddComponent<Image>();
+            RectTransform closeHitRect = (RectTransform)closeHit.transform;
+            closeHitRect.anchorMin = new Vector2(0.5f, 0.5f);
+            closeHitRect.anchorMax = new Vector2(0.5f, 0.5f);
+            closeHitRect.pivot = new Vector2(0.5f, 0.5f);
+            closeHitRect.anchoredPosition = new Vector2(34f, 34f);
+            closeHitRect.sizeDelta = new Vector2(136f, 136f);
+            closeHit.color = Color.clear;
 
             panel.gameObject.SetActive(false);             // TitleMenu.OnPlay opens it
             return (panel.gameObject, cont, story, howTo, close);

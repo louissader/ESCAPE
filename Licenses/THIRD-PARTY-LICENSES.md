@@ -29,14 +29,50 @@ Snapshots of delisted pages are stored alongside this file as evidence.
   (local copy: `glynmoog-melodic-themes-vol1-itch-page-wayback-2025-07-27.html`).
   Description states: "You are granted Full Unrestricted License to use as
   you please for personal or commercial use - crediting is appreciated."
-- Tracks used: from the 4-track pack (Mysterious Force, Desolation, Solitude
-  Wonder, Sad Lullaby), wired via AudioSetup.
+- Tracks used: 3 of the pack's tracks are in the repo and shipped — "01
+  Mysterious Force Loop", "02 Desolation Loop", "03 Solitude Wonder" — wired
+  name-based via AudioSetup (menu + 2 zone themes). "Sad Lullaby" is not in
+  the repo and is not used.
 
 ## IndieMarc "Simple 2D Platformer Template"
 
 - Unity Asset Store EULA — permitted to ship embedded in a game build.
-  Its art was fully replaced by generated assets; only code scaffolding
-  remains.
+- What actually ships (verified 2026-09-07): the code scaffolding (character
+  controllers, Lever/Bridge scripts) AND some template art. The player
+  character art was replaced — Player1/Player2 prefabs reference the
+  generated EMBER/WISP sheets and Hero1/Hero2 animator controllers — but
+  `Prefabs/Lever.prefab` (instanced in all 8 level scenes) still references
+  the template's `Sprites/Lever/Lever_position01/02/03.png`, so those lever
+  sprites ship and render in-game. The remaining template art
+  (Character sprites/animations, Lever_position05, Circle/CircleBlur) sits
+  unreferenced in `Assets/IndieMarc/PlatformerDemo/Sprites/` and is excluded
+  from builds by Unity's dependency pruning. The Asset Store EULA covers
+  shipping the art either way; no attribution required.
+
+## LiberationSans (TextMesh Pro default font) — SHIPS, OFL
+
+- **License:** SIL Open Font License 1.1. Full license text is committed at
+  `Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt`.
+- `LiberationSans SDF.asset` (under `Assets/TextMesh Pro/Resources/`) is the
+  project's default TMP font asset, so the font data compiles into every
+  build. The OFL permits bundling/embedding in commercial software; the
+  reserved-font-name and license-text conditions are satisfied by shipping
+  the font unrenamed and keeping the OFL text in-repo.
+
+## EmojiOne / JoyPixels sprite sheet (TextMesh Pro sample) — NOT USED
+
+- TMP's bundled `EmojiOne.asset` sprite sheet (free-tier license requires
+  visible attribution) is present in the project source at
+  `Assets/TextMesh Pro/Resources/Sprite Assets/EmojiOne.asset` but is NOT
+  used: no scene, prefab, or script contains a `<sprite>` tag or a sprite
+  asset reference, and the `m_defaultSpriteAsset` reference in TMP Settings
+  was cleared on 2026-09-07. The game displays no EmojiOne artwork, so no
+  attribution is owed for what players see.
+- CAVEAT: because the file lives under a `Resources/` folder, Unity still
+  compiles its bytes into builds regardless of references. It is flagged for
+  manual deletion inside the Unity editor (delete
+  `Sprite Assets/EmojiOne.asset` via the Project window so the .meta stays
+  in sync) before cutting the next build.
 
 ## First-party generated assets
 

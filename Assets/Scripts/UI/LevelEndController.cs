@@ -64,8 +64,11 @@ public class LevelEndController : MonoBehaviour
             winTitle.text = $"LEVEL {SceneRouter.DisplayNumber(level)} COMPLETE";
         if (winCrystals != null)
             winCrystals.text = crystals >= 1 && totalCrystals >= 1
-                ? "\u2605  STAR COLLECTED!"
-                : "\u2606  the star is still out there...";
+                // Plain ASCII on purpose: the static LiberationSans SDF atlas
+                // has no U+2605/U+2606 glyphs and no fallback font is set, so
+                // the stars rendered as blank boxes on every win panel.
+                ? "STAR COLLECTED!"
+                : "The star is still out there...";
         if (nextButton != null)
         {
             // Final level: the button becomes the doorway to the ending —

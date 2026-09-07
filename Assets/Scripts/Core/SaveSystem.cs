@@ -132,10 +132,26 @@ public static class SaveSystem
         set { PlayerPrefs.SetInt(KeyHaptics, value ? 1 : 0); PlayerPrefs.Save(); }
     }
 
+    /// <summary>Fires when ControlMode is changed to a NEW value. Settings
+    /// writes the pref mid-level, but TouchControlsUI and SwapModeController
+    /// resolved the mode once in Start() — without this the SWAP/COOP toggle
+    /// did nothing until a scene reload, so the one control that could undo
+    /// the wrong layout looked broken.</summary>
+    public static event System.Action OnControlModeChanged;
+
     public static ControlModeSetting ControlMode
     {
         get { return (ControlModeSetting)PlayerPrefs.GetInt(KeyControlMode, 0); }
-        set { PlayerPrefs.SetInt(KeyControlMode, (int)value); PlayerPrefs.Save(); }
+        set
+        {
+            if ((ControlModeSetting)PlayerPrefs.GetInt(KeyControlMode, 0) == value)
+                return;
+            PlayerPrefs.SetInt(KeyControlMode, (int)value);
+            PlayerPrefs.Save();
+            var handler = OnControlModeChanged;
+            if (handler != null)
+                handler();
+        }
     }
 
     public static bool StorySeen

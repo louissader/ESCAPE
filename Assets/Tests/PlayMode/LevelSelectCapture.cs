@@ -1,4 +1,5 @@
 using System.Collections;
+using Escape.Automation;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -20,9 +21,9 @@ public class LevelSelectCapture
         bool realStory = SaveSystem.StorySeen;
 
         SaveSystem.Migrate();
-        // Stage progress on the shipped progression's FIRST level — internal
-        // level 1 no longer has a tile (legacy 1-3 disabled), so staging it
-        // there would render a capture that verifies nothing.
+        // Stage progress on the shipped progression's FIRST level
+        // (SceneRouter.FirstLevel), wherever the progression starts, so the
+        // capture always exercises a tile that actually exists in the grid.
         SaveSystem.OnLevelCompleted(SceneRouter.FirstLevel);
         SaveSystem.RecordStars(SceneRouter.FirstLevel, 2);
 
@@ -39,31 +40,27 @@ public class LevelSelectCapture
         }
 
         Camera cam = Camera.main;
-        var rt = new RenderTexture(1920, 1080, 24, RenderTextureFormat.ARGB32);
-        // Screen-space-overlay canvases don't render through a camera RT, so
-        // temporarily switch the canvas to camera space for the capture.
-        foreach (Canvas canvas in Object.FindObjectsOfType<Canvas>())
-        {
-            if (canvas.renderMode == RenderMode.ScreenSpaceOverlay)
-            {
-                canvas.renderMode = RenderMode.ScreenSpaceCamera;
-                canvas.worldCamera = cam;
-                canvas.planeDistance = 1f;
-            }
-        }
-        yield return null;
 
-        cam.targetTexture = rt;
-        cam.Render();
-        cam.targetTexture = null;
-        RenderTexture.active = rt;
-        var tex = new Texture2D(1920, 1080, TextureFormat.RGB24, false);
-        tex.ReadPixels(new Rect(0, 0, 1920, 1080), 0, 0);
-        tex.Apply();
-        RenderTexture.active = null;
-        System.IO.File.WriteAllBytes("StoreAssets/levelselect_coins.png", tex.EncodeToPNG());
-        Object.Destroy(tex);
-        rt.Release();
+        // Screen-space-overlay canvases don't render through a camera RT, so
+        // the rig flips them to camera space (and puts them back). It also
+        // assigns the target texture BEFORE the flip — a camera-space canvas
+        // lays itself out against the camera's pixel rect, so flipping first
+        // would size the UI to the Game view instead of the capture — and it
+        // skips ScreenFader, whose full-screen black Image would otherwise
+        // composite into the shot if the fade hadn't finished.
+        StoreScreenshotRig.CaptureSession session =
+            StoreScreenshotRig.Begin(cam, StoreScreenshotRig.Qa1080);
+        try
+        {
+            yield return null;
+            yield return null;
+            session.Write(System.IO.Path.Combine(
+                StoreScreenshotRig.OutputDirectory, "levelselect_coins.png"));
+        }
+        finally
+        {
+            session.Dispose();
+        }
 
         // Restore real progress (best effort — completion flags stay, which
         // only matters for this QA capture run, not player builds).

@@ -92,8 +92,10 @@ namespace Escape.EditorAutomation
                 Image dim = overlay.gameObject.AddComponent<Image>();
                 dim.color = new Color(0f, 0f, 0f, 0.66f);
 
+                // Title lifted 280 -> 360 to clear the taller button stack
+                // below (top edge 284 with the 136-unit rows).
                 TextMeshProUGUI title = MakeLabel(overlay, "Title", "PAUSED", 72,
-                    new Vector2(0.5f, 0.5f), new Vector2(0, 280));
+                    new Vector2(0.5f, 0.5f), new Vector2(0, 360));
 
                 string[] labels = { "RESUME", "RESTART LEVEL", "SETTINGS", "LEVEL SELECT" };
                 System.Action<Button>[] wires =
@@ -103,10 +105,19 @@ namespace Escape.EditorAutomation
                     b => UnityEventTools.AddPersistentListener(b.onClick, pause.OnSettingsButton),
                     b => UnityEventTools.AddPersistentListener(b.onClick, pause.OnLevelSelectButton),
                 };
+                // 136 units is the interactive floor (47.2 pt on an iPhone
+                // SE3, the device with the most canvas units per point); the
+                // old 96 was 33.3 pt, under Apple's 44 pt minimum. Row pitch
+                // goes 120 -> 144 so the taller rows do not overlap, leaving
+                // an 8-unit visual gap. Stack recentred (216 - i*144) so all
+                // FIVE rows fit: HowToPlayBuilder appends Btn_HowToPlay as
+                // row 5 at y -360, which is exactly 216 - 4*144. Bottom edge
+                // -428 clears the shortest safe canvas (-472 on a 19.5:9
+                // iPhone, canvas height 977 minus the home-indicator inset).
                 for (int i = 0; i < labels.Length; i++)
                 {
                     Button b = MakeTextButton(overlay, "Btn_" + labels[i].Replace(" ", ""), labels[i],
-                        new Vector2(0.5f, 0.5f), new Vector2(0, 120 - i * 120), new Vector2(560, 96));
+                        new Vector2(0.5f, 0.5f), new Vector2(0, 216 - i * 144), new Vector2(560, 136));
                     wires[i](b);
                 }
 
@@ -117,33 +128,62 @@ namespace Escape.EditorAutomation
                 settingsDim.color = new Color(0.02f, 0.09f, 0.13f, 0.97f);
                 SettingsPanel panel = settings.gameObject.AddComponent<SettingsPanel>();
 
-                MakeLabel(settings, "Title", "SETTINGS", 72, new Vector2(0.5f, 0.5f), new Vector2(0, 340));
+                // Row pitch is 144 across the whole panel: every row's hit
+                // surface is 136 units (47.2 pt on an SE3) and 144 - 136
+                // leaves an 8-unit dead band, so no two rows can ever claim
+                // the same tap. The old 120 pitch could not carry 136-unit
+                // rows without overlapping. RESET/BACK share the last row
+                // because six stacked 144-pitch rows plus the title need 995
+                // units and the shortest safe canvas has 961.
+                MakeLabel(settings, "Title", "SETTINGS", 72, new Vector2(0.5f, 0.5f), new Vector2(0, 376));
 
-                MakeLabel(settings, "MusicLabel", "MUSIC", 40, new Vector2(0.5f, 0.5f), new Vector2(-420, 200));
-                Slider music = MakeSlider(settings, "MusicSlider", new Vector2(120, 200));
+                MakeLabel(settings, "MusicLabel", "MUSIC", 40, new Vector2(0.5f, 0.5f), new Vector2(-420, 232));
+                Slider music = MakeSlider(settings, "MusicSlider", new Vector2(120, 232));
                 UnityEventTools.AddPersistentListener(music.onValueChanged, panel.OnMusicChanged);
 
-                MakeLabel(settings, "SfxLabel", "SOUND", 40, new Vector2(0.5f, 0.5f), new Vector2(-420, 80));
-                Slider sfx = MakeSlider(settings, "SfxSlider", new Vector2(120, 80));
+                MakeLabel(settings, "SfxLabel", "SOUND", 40, new Vector2(0.5f, 0.5f), new Vector2(-420, 88));
+                Slider sfx = MakeSlider(settings, "SfxSlider", new Vector2(120, 88));
                 UnityEventTools.AddPersistentListener(sfx.onValueChanged, panel.OnSfxChanged);
 
-                MakeLabel(settings, "ModeLabel", "CONTROLS", 40, new Vector2(0.5f, 0.5f), new Vector2(-420, -40));
-                Toggle swap = MakeToggle(settings, "SwapToggle", "SOLO (SWAP)", new Vector2(40, -40));
+                MakeLabel(settings, "ModeLabel", "CONTROLS", 40, new Vector2(0.5f, 0.5f), new Vector2(-420, -56));
+                Toggle swap = MakeToggle(settings, "SwapToggle", "SOLO (SWAP)", new Vector2(40, -56));
                 UnityEventTools.AddPersistentListener(swap.onValueChanged, panel.OnSwapModeSelected);
-                Toggle coop = MakeToggle(settings, "CoopToggle", "2-PLAYER CO-OP", new Vector2(440, -40));
+                Toggle coop = MakeToggle(settings, "CoopToggle", "2-PLAYER CO-OP", new Vector2(440, -56));
                 UnityEventTools.AddPersistentListener(coop.onValueChanged, panel.OnCoopModeSelected);
 
-                MakeLabel(settings, "HapticsLabel", "HAPTICS", 40, new Vector2(0.5f, 0.5f), new Vector2(-420, -160));
-                Toggle haptics = MakeToggle(settings, "HapticsToggle", "VIBRATION", new Vector2(40, -160));
+                // SWAP and CO-OP are one radio pair. Without a ToggleGroup
+                // both boxes stay ticked after a switch (the unselected one
+                // is never cleared), which reads as a broken control - the
+                // exact "hard to interact with" complaint in the Guideline 4
+                // rejection. HAPTICS is an independent switch and must NOT
+                // join: adding it would make enabling vibration silently
+                // clear the control mode. AllowSwitchOff false: there is no
+                // valid "neither" state. SettingsPanel.OnEnable ticks the
+                // one that matches SaveSystem.ControlMode.
+                ToggleGroup modeGroup = settings.gameObject.AddComponent<ToggleGroup>();
+                modeGroup.allowSwitchOff = false;
+                // Clear first: a fresh Toggle defaults to isOn, and joining a
+                // group with two "on" members leaves an arbitrary winner.
+                swap.SetIsOnWithoutNotify(false);
+                coop.SetIsOnWithoutNotify(false);
+                swap.group = modeGroup;
+                coop.group = modeGroup;
+                swap.SetIsOnWithoutNotify(true);   // ControlModeResolver default on touch
+
+                TextMeshProUGUI hapticsLabel = MakeLabel(settings, "HapticsLabel", "HAPTICS", 40,
+                    new Vector2(0.5f, 0.5f), new Vector2(-420, -200));
+                Toggle haptics = MakeToggle(settings, "HapticsToggle", "VIBRATION", new Vector2(40, -200));
                 UnityEventTools.AddPersistentListener(haptics.onValueChanged, panel.OnHapticsToggled);
 
-                Button reset = MakeTextButton(settings, "Btn_Reset", "RESET PROGRESS",
-                    new Vector2(0.5f, 0.5f), new Vector2(0, -260), new Vector2(560, 88));
-                UnityEventTools.AddPersistentListener(reset.onClick, panel.OnResetProgress);
-
+                // Last row, side by side: 88 -> 136 tall, and stacking them
+                // would push BACK off the bottom of a 19.5:9 canvas.
                 Button close = MakeTextButton(settings, "Btn_Close", "BACK",
-                    new Vector2(0.5f, 0.5f), new Vector2(0, -380), new Vector2(360, 88));
+                    new Vector2(0.5f, 0.5f), new Vector2(-380, -344), new Vector2(360, 136));
                 UnityEventTools.AddPersistentListener(close.onClick, panel.OnClose);
+
+                Button reset = MakeTextButton(settings, "Btn_Reset", "RESET PROGRESS",
+                    new Vector2(0.5f, 0.5f), new Vector2(200, -344), new Vector2(560, 136));
+                UnityEventTools.AddPersistentListener(reset.onClick, panel.OnResetProgress);
 
                 // Reset confirm sub-panel.
                 RectTransform confirm = NewRect("ResetConfirm", settings);
@@ -152,10 +192,10 @@ namespace Escape.EditorAutomation
                 confirmDim.color = new Color(0f, 0f, 0f, 0.85f);
                 MakeLabel(confirm, "Msg", "ERASE ALL PROGRESS?", 56, new Vector2(0.5f, 0.5f), new Vector2(0, 100));
                 Button yes = MakeTextButton(confirm, "Btn_Yes", "ERASE",
-                    new Vector2(0.5f, 0.5f), new Vector2(-220, -60), new Vector2(320, 88));
+                    new Vector2(0.5f, 0.5f), new Vector2(-220, -60), new Vector2(320, 136));
                 UnityEventTools.AddPersistentListener(yes.onClick, panel.OnResetConfirmed);
                 Button no = MakeTextButton(confirm, "Btn_No", "KEEP",
-                    new Vector2(0.5f, 0.5f), new Vector2(220, -60), new Vector2(320, 88));
+                    new Vector2(0.5f, 0.5f), new Vector2(220, -60), new Vector2(320, 136));
                 UnityEventTools.AddPersistentListener(no.onClick, panel.OnResetCancelled);
 
                 // ---------- serialized wiring ----------
@@ -172,6 +212,7 @@ namespace Escape.EditorAutomation
                 SetPrivate(panel, "swapToggle", swap);
                 SetPrivate(panel, "coopToggle", coop);
                 SetPrivate(panel, "hapticsToggle", haptics);
+                SetPrivate(panel, "hapticsLabel", hapticsLabel.gameObject);
                 SetPrivate(panel, "resetConfirm", confirm.gameObject);
 
                 // ---------- Level-end panels (win + fail) ----------
@@ -185,14 +226,16 @@ namespace Escape.EditorAutomation
                     new Vector2(0.5f, 0.5f), new Vector2(0, 260));
                 TextMeshProUGUI winCrystals = MakeLabel(winPanel, "Crystals", "STAR COINS 0 / 3", 44,
                     new Vector2(0.5f, 0.5f), new Vector2(0, 150));
+                // 96 -> 136 tall, pitch 120 -> 144 (see the pause stack note).
+                // Bottom edge -326 stays inside the shortest safe canvas.
                 Button nextBtn = MakeTextButton(winPanel, "Btn_Next", "NEXT LEVEL",
-                    new Vector2(0.5f, 0.5f), new Vector2(0, 30), new Vector2(560, 96));
+                    new Vector2(0.5f, 0.5f), new Vector2(0, 30), new Vector2(560, 136));
                 UnityEventTools.AddPersistentListener(nextBtn.onClick, endController.OnNextLevel);
                 Button replayBtn = MakeTextButton(winPanel, "Btn_Replay", "REPLAY",
-                    new Vector2(0.5f, 0.5f), new Vector2(0, -90), new Vector2(560, 96));
+                    new Vector2(0.5f, 0.5f), new Vector2(0, -114), new Vector2(560, 136));
                 UnityEventTools.AddPersistentListener(replayBtn.onClick, endController.OnReplay);
                 Button winSelectBtn = MakeTextButton(winPanel, "Btn_Select", "LEVEL SELECT",
-                    new Vector2(0.5f, 0.5f), new Vector2(0, -210), new Vector2(560, 96));
+                    new Vector2(0.5f, 0.5f), new Vector2(0, -258), new Vector2(560, 136));
                 UnityEventTools.AddPersistentListener(winSelectBtn.onClick, endController.OnLevelSelect);
 
                 RectTransform failPanel = NewRect("FailPanel", safeArea);
@@ -201,10 +244,10 @@ namespace Escape.EditorAutomation
                 failDim.color = new Color(0.14f, 0.02f, 0.02f, 0.92f);
                 MakeLabel(failPanel, "Title", "YOU FELL", 76, new Vector2(0.5f, 0.5f), new Vector2(0, 200));
                 Button retryBtn = MakeTextButton(failPanel, "Btn_Retry", "RETRY",
-                    new Vector2(0.5f, 0.5f), new Vector2(0, 40), new Vector2(560, 96));
+                    new Vector2(0.5f, 0.5f), new Vector2(0, 40), new Vector2(560, 136));
                 UnityEventTools.AddPersistentListener(retryBtn.onClick, endController.OnRetry);
                 Button failSelectBtn = MakeTextButton(failPanel, "Btn_Select", "LEVEL SELECT",
-                    new Vector2(0.5f, 0.5f), new Vector2(0, -80), new Vector2(560, 96));
+                    new Vector2(0.5f, 0.5f), new Vector2(0, -104), new Vector2(560, 136));
                 UnityEventTools.AddPersistentListener(failSelectBtn.onClick, endController.OnLevelSelect);
 
                 SetPrivate(endController, "winPanel", winPanel.gameObject);
@@ -513,15 +556,30 @@ namespace Escape.EditorAutomation
             handle.color = Color.white;
             slider.handleRect = (RectTransform)handle.transform;
             slider.targetGraphic = handle;
+
+            // Same trick as MakeTapArea: the 640x48 track is 16.7 pt tall on
+            // an SE3 and the 56x72 handle is 19.4x25 pt, so an invisible
+            // 640x136 child carries the raycast while the visuals stay thin.
+            // No Selectable of its own - EventSystem's ExecuteHierarchy walks
+            // up to the Slider, and Slider.UpdateDrag measures against
+            // handleRect's parent, not against whatever graphic was hit.
+            // Added last so it sits above the handle in the draw order; both
+            // resolve to the same Slider, so which one wins is irrelevant.
+            Image hit = NewRect("HitArea", rect).gameObject.AddComponent<Image>();
+            Place((RectTransform)hit.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(640, 136));
+            hit.color = Color.clear;
             return slider;
         }
 
         static Toggle MakeToggle(RectTransform parent, string name, string label, Vector2 pos)
         {
             RectTransform rect = NewRect(name, parent);
-            Place(rect, new Vector2(0.5f, 0.5f), pos, new Vector2(380, 72));
-            // Whole-row hit surface: the 56-unit box alone is ~22 pt,
-            // half Apple's 44 pt floor. Invisible but raycastable.
+            Place(rect, new Vector2(0.5f, 0.5f), pos, new Vector2(380, 136));
+            // Whole-row hit surface: the 56-unit box alone is ~19 pt and the
+            // old 72-unit row only 25 pt, both under Apple's 44 pt floor.
+            // 136 units = 47.2 pt on an SE3. Invisible but raycastable; the
+            // visual pips (56x56 box, its check inset) and the label are
+            // anchored to the row's vertical centre, so they do not move.
             Image hit = rect.gameObject.AddComponent<Image>();
             hit.color = Color.clear;
             Toggle toggle = rect.gameObject.AddComponent<Toggle>();

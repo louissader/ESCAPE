@@ -1,4 +1,4 @@
-# ESCAPE — Release Checklist (v1.0.0)
+# ESCAPE — Release Checklist (v1.2.0, build 5)
 
 State of the build-out as of 2026-07-11 on branch `mobile-release`.
 Everything below the "Human actions" line requires accounts/credentials only
@@ -31,11 +31,12 @@ a human holds; everything above it was automated and verified in-repo.
   synthesized SFX wired to every gameplay event. Music/SFX sliders.
   NOTE: no AudioMixer asset (not creatable from editor code) — two gain
   stages in AudioManager give the same user-facing result.
-- Store config: `com.louissader.escape` v1.0.0, IL2CPP, **ARM64-only**
-  (the old project shipped ARMv7+X86 with no 64-bit slice at all!), minSdk
-  24 / target **36**, AAB, TV-compat off, predictive-back disabled via
-  custom AndroidManifest, iOS 13.0+, landscape-locked, bottom-edge deferred
-  system gestures, adaptive + flat icons, splash color matched.
+- Store config: `com.louissader.escape` v1.2.0 (build 5), IL2CPP,
+  **ARM64-only** (the old project shipped ARMv7+X86 with no 64-bit slice at
+  all!), minSdk 24 / target **36**, AAB, TV-compat off, predictive-back
+  disabled via custom AndroidManifest, iOS 15.0+, landscape-locked,
+  bottom-edge deferred system gestures, adaptive + flat icons, splash color
+  matched.
 
 ## Verified automatically (2026-07-11)
 
@@ -58,6 +59,11 @@ a human holds; everything above it was automated and verified in-repo.
 - [ ] Android 15/16 back-gesture pauses the game (predictive back disabled).
 - [ ] iPad windowed aspect ratios (~4:3 and ~2.4:1) keep HUD/camera sane
       (UIRequiresFullScreen is deprecated as of iPadOS 26 — see TN3192).
+      The App Store Guideline 4 rejection proved this was a real problem;
+      fixes since landed: Swap mode is now the default on ALL touch devices,
+      control mode can be switched live, tap targets enlarged to 136u, and
+      the duplicate cameras in Levels 1-3 were removed. Still needs
+      on-device verification on an iPad in windowed/Stage Manager sizes.
 
 ## Human actions — Apple
 
@@ -92,16 +98,30 @@ a human holds; everything above it was automated and verified in-repo.
 4. Store listing: phone screenshots (16:9, min 1080px), 7" + 10" tablet
    sets, feature graphic 1024x500, short + full description.
 
-## Licensing verification (do before public release)
+## Licensing — VERIFIED (audit completed 2026-08-04, updated 2026-09-07)
 
-- **Grotto Escape pack** (ansimuz-style itch.io pixel pack): no license file
-  was bundled. Verify the edition's license permits commercial games
-  (ansimuz free packs are typically CC0/"use in commercial projects").
-- **GLYNMOOG "Melodic Themes vol.1"**: verify the itch.io page grants
-  commercial use. If not, swap the three tracks (file replacement — wiring
-  is name-based via AudioSetup) with CC0 candidates (e.g. Kevin MacLeod).
-- IndieMarc "Simple 2D Platformer Template": Asset Store EULA — fine to
-  ship inside a game; its art was fully replaced anyway.
+Full details and archived evidence live in `Licenses/THIRD-PARTY-LICENSES.md`
+(Wayback snapshots committed alongside it).
+
+- **Grotto Escape packs (ansimuz)**: CC0 — itch.io metadata reads "Creative
+  Commons Zero v1.0 Universal"; Wayback capture of the Grotto Escape II page
+  committed in `Licenses/`. Commercial use OK, no attribution required.
+- **GLYNMOOG "Free Music Pack: Melodic Themes vol.1"** (music pack): page
+  description grants "Full Unrestricted License to use as you please for
+  personal or commercial use - crediting is appreciated." Wayback capture
+  committed in `Licenses/`. Three tracks ship (01 Mysterious Force Loop,
+  02 Desolation Loop, 03 Solitude Wonder).
+- **IndieMarc "Simple 2D Platformer Template"**: Unity Asset Store EULA —
+  fine to ship embedded in a game. Code scaffolding plus the lever sprites
+  still ship (player art was replaced by generated EMBER/WISP sheets).
+- **LiberationSans** (TMP default font): SIL Open Font License 1.1; license
+  text committed at `Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt`.
+- **EmojiOne/JoyPixels sprite sheet** (TMP sample; free tier requires
+  visible attribution): NOT used — no sprite tags or references anywhere,
+  and the TMP Settings default-sprite-asset reference was cleared
+  2026-09-07. It still sits under a `Resources/` folder, so DELETE
+  `Assets/TextMesh Pro/Resources/Sprite Assets/EmojiOne.asset` inside the
+  Unity editor before the next build to keep its bytes out entirely.
 - Unity Personal splash stays (mandatory on Personal license, 2022.3).
 
 ## Known deferred items
