@@ -37,8 +37,7 @@ public class LevelMenu : MonoBehaviour
     public void PlayLevel(int levelNumber)
     {
         // Both bounds matter: the floor keeps future wiring from loading a
-        // disabled legacy level (1-3) that sits outside the shipped
-        // progression (SceneRouter.FirstLevel).
+        // level below the shipped progression's start (SceneRouter.FirstLevel).
         if (levelNumber >= SceneRouter.FirstLevel &&
             levelNumber <= SaveSystem.HighestUnlockedLevel)
             SceneRouter.LoadLevel(levelNumber);

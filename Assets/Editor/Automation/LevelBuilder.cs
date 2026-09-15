@@ -21,9 +21,8 @@ namespace Escape.EditorAutomation
         const string GenPrefix = "GEN_";
         const int GroundLayer = 0; // resolved at runtime from "Level" layer if present
 
-        // Draw-order contract, ALL on the Default sorting layer (verified
-        // against the legacy scene YAML — nothing in L1-3 uses another
-        // layer): parallax BG -60/-45, deco tilemap -1, terrain/art tilemap
+        // Draw-order contract, ALL on the Default sorting layer:
+        // parallax BG -60/-45, deco tilemap -1, terrain/art tilemap
         // 0, doors + decorative props 1, pickups/stars/hearts/checkpoints 2.
         // Doors sit ONE below the pickups so collectibles always read on
         // top of a doorway.
@@ -70,15 +69,6 @@ namespace Escape.EditorAutomation
             foreach (LevelDefinition def in defs)
             {
                 BuildLevel(def, $"Assets/Scenes/Level {def.levelNumber}.unity");
-                if (IsLegacyLevel(def.levelNumber))
-                {
-                    // Original hand-built geometry is preserved verbatim and
-                    // human-verified (the team's gameplay videos beat all
-                    // three) — the grid model can't see the P2-boost chains
-                    // they use, so the automated check doesn't apply.
-                    Debug.Log($"[Solvability] L{def.levelNumber}: SKIPPED (legacy geometry, human-verified)");
-                    continue;
-                }
                 bool solvable = LevelSolvability.Check(def);
                 if (!solvable)
                     Debug.LogError($"[LevelBuilder] Level {def.levelNumber} FAILED solvability!");
@@ -87,13 +77,6 @@ namespace Escape.EditorAutomation
             UpdateBuildSettings(defs.Select(d => d.levelNumber).ToList());
             Debug.Log($"[LevelBuilder] built {defs.Count} levels");
         }
-
-        /// <summary>
-        /// Levels 1-3 keep their proven hand-built geometry and entities;
-        /// the builder only AUGMENTS them (camera rig, lights, parallax,
-        /// pickups, hints, retunes). Levels 4+ are fully generated.
-        /// </summary>
-        public static bool IsLegacyLevel(int levelNumber) { return levelNumber <= 3; }
 
         public static void BuildLevel(LevelDefinition def, string scenePath)
         {
@@ -106,16 +89,8 @@ namespace Escape.EditorAutomation
                 if (root.name.StartsWith(GenPrefix))
                     Object.DestroyImmediate(root);
 
-            bool augment = IsLegacyLevel(def.levelNumber);
-            if (augment)
-            {
-                AugmentLegacyLevel(def);
-            }
-            else
-            {
-                BuildTilemaps(def);
-                BuildEntities(def);
-            }
+            BuildTilemaps(def);
+            BuildEntities(def);
             BuildCamera(def);
             BuildLighting(def);
             BuildParallax(def);
@@ -123,238 +98,13 @@ namespace Escape.EditorAutomation
 
             EditorSceneManager.SaveScene(scene, scenePath);
             Debug.Log($"[LevelBuilder] saved {scenePath} " +
-                      (augment ? "(augmented legacy geometry)" :
-                       $"({def.GridWidth}x{def.GridHeight} tiles, {def.enemies.Length} enemies)"));
-        }
-
-        /// <summary>
-        /// In-place upgrades for the original scenes: ghost retunes (L2 5,
-        /// L3 8), passive L1 bat, hearts/crystals/checkpoint at extractor-
-        /// picked standable spots, L1 tutorial hints. Tile coords from the
-        /// definition are translated back to world space via the scene's own
-        /// tilemap bounds (the extractor normalized against them).
-        /// </summary>
-        static void AugmentLegacyLevel(LevelDefinition def)
-        {
-            var tilemap = FindColliderTilemap();
-            Vector2Int offset = Vector2Int.zero;
-            if (tilemap != null)
-            {
-                tilemap.CompressBounds();
-                offset = new Vector2Int(tilemap.cellBounds.xMin, tilemap.cellBounds.yMin);
-            }
-            Vector3 LegacyWorld(Vector2Int tile)
-            {
-                if (tilemap == null)
-                    return World(tile);
-                Vector3Int cell = new Vector3Int(tile.x + offset.x, tile.y + offset.y, 0);
-                return tilemap.layoutGrid.CellToWorld(cell) + new Vector3(0.5f, 0.5f, 0f);
-            }
-
-            // Ghost retune: keep an even spread, delete the rest.
-            int keep = def.levelNumber == 2 ? 5 : def.levelNumber == 3 ? 8 : int.MaxValue;
-            var ghosts = Object.FindObjectsOfType<IndieMarc.Platformer.Ghost>()
-                .OrderBy(g => g.transform.position.x).ToList();
-            if (ghosts.Count > keep)
-            {
-                var keepSet = new HashSet<int>();
-                for (int i = 0; i < keep; i++)
-                    keepSet.Add(Mathf.RoundToInt(i * (ghosts.Count - 1) / (float)(keep - 1)));
-                for (int i = ghosts.Count - 1; i >= 0; i--)
-                    if (!keepSet.Contains(i))
-                        Object.DestroyImmediate(ghosts[i].gameObject);
-                Debug.Log($"[LevelBuilder] L{def.levelNumber}: ghosts {ghosts.Count} → {keep}");
-            }
-
-            // L1 bat teaches without shooting.
-            if (def.levelNumber == 1)
-            {
-                foreach (var bat in Object.FindObjectsOfType<IndieMarc.Platformer.Bat>())
-                    bat.canShoot = false;
-            }
-
-            GameObject holder = new GameObject(GenPrefix + "Pickups");
-            foreach (Vector2Int p in def.hearts)
-                AddHeart(holder, LegacyWorld(p));
-            Sprite starSpriteL = FirstSprite("Assets/Art/Generated/Props/star.png", "star_twinkle_0");
-            // The extractor's standable-scan silently produced empty arrays
-            // for the legacy levels (their star/heart spots were never
-            // authored) — derive positions from the LIVE tilemap instead so
-            // every level is guaranteed a collectible star on real ground.
-            Vector3? starSpot = def.crystals.Length > 0
-                ? LegacyWorld(def.crystals[0])
-                : FindStandableWorld(tilemap, 0.55f);
-            if (starSpot.HasValue)
-                AddCoinSpin(SpriteEntity<Crystal>(holder, "Star", starSpot.Value, starSpriteL, 1.1f));
-            else
-                Debug.LogError($"[LevelBuilder] L{def.levelNumber}: no star spot found!");
-
-            if (def.hearts.Length == 0 && tilemap != null)
-            {
-                foreach (float fx in new[] { 0.3f, 0.75f })
-                {
-                    Vector3? spot = FindStandableWorld(tilemap, fx);
-                    if (spot.HasValue)
-                        AddHeart(holder, spot.Value);
-                }
-            }
-            foreach (Vector2Int p in def.checkpoints)
-                AddCheckpoint(holder, LegacyWorld(p));
-
-            if (def.levelNumber == 1)
-            {
-                GameObject p1 = GameObject.Find("Player1");
-                Vector3 basePos = p1 != null ? p1.transform.position : LegacyWorld(def.player1Spawn);
-                (string msg, Vector3 at, bool last)[] hints =
-                {
-                    ("Hold < > to move, tap A to jump\n(tap A again mid-air!)", basePos + new Vector3(2, 0, 0), false),
-                    ("Tap the SWAP button (or your partner's portrait)\nto control the other hero", basePos + new Vector3(8, 0, 0), false),
-                    ("BOTH heroes must stand in\ntheir matching doors to escape!", basePos + new Vector3(14, 0, 0), true),
-                };
-                foreach (var (msg, at, last) in hints)
-                    AddHint(holder, msg, at, false, last);
-            }
-
-            AddSceneContextualHints(holder);
-            ConvertLegacyExits();
-            DecorateLegacyLevel(def);
+                      $"({def.GridWidth}x{def.GridHeight} tiles, {def.enemies.Length} enemies)");
         }
 
         // ---------------- exit doors ----------------
 
         const string DoorEmberSheet = "Assets/Art/Generated/Props/door_ember.png";
         const string DoorWispSheet = "Assets/Art/Generated/Props/door_wisp.png";
-
-        /// <summary>
-        /// Legacy exits: the hand-placed "Dragon" portals become hero-matched
-        /// ExitDoors AT THEIR OWN POSITIONS (geometry rule: never move them).
-        /// The old portals stay in the scene but disabled — their solid
-        /// collider would otherwise wall off the new doorway (the win branch
-        /// in the player classes already stands down when ExitDoors exist).
-        /// </summary>
-        static void ConvertLegacyExits()
-        {
-            // Must also find the portals a previous run disabled —
-            // FindGameObjectsWithTag skips inactive objects.
-            var dragons = Object.FindObjectsOfType<Transform>(true)
-                .Where(t => t.gameObject.scene.IsValid() && t.gameObject.CompareTag("Dragon"))
-                .Select(t => t.gameObject)
-                .OrderBy(g => g.transform.position.x)
-                .ToList();
-            if (dragons.Count < 2)
-            {
-                Debug.LogError($"[LevelBuilder] legacy scene has {dragons.Count} Dragon exit(s) — expected 2+");
-                return;
-            }
-
-            foreach (GameObject dragon in dragons)
-                dragon.SetActive(false);
-
-            // More than two portals (L2 carries three): keep the pair that
-            // is farthest apart — the middle one sat next to the spawn.
-            GameObject left = dragons.First();
-            GameObject right = dragons.Last();
-
-            // EMBER/WISP assignment: the pairing that minimizes total
-            // spawn→door distance (heroes move identically, so either works;
-            // this one just reads naturally in co-op).
-            GameObject p1 = GameObject.Find("Player1");
-            GameObject p2 = GameObject.Find("Player2");
-            bool emberLeft = true;
-            if (p1 != null && p2 != null)
-            {
-                float leftFirst = Vector3.Distance(p1.transform.position, left.transform.position) +
-                                  Vector3.Distance(p2.transform.position, right.transform.position);
-                float rightFirst = Vector3.Distance(p1.transform.position, right.transform.position) +
-                                   Vector3.Distance(p2.transform.position, left.transform.position);
-                emberLeft = leftFirst <= rightFirst;
-            }
-
-            GameObject exitHolder = new GameObject(GenPrefix + "Exits");
-            // Dragons were hand-placed by eye and some hover — ground each
-            // doorway on the COLLIDER tilemap floor (the art tilemap has
-            // tiles in every cell and cannot answer "where is the ground").
-            Tilemap colliderTilemap = FindColliderTilemap();
-            Vector3 emberPos = GroundLegacyDoor(colliderTilemap, (emberLeft ? left : right).transform.position);
-            Vector3 wispPos = GroundLegacyDoor(colliderTilemap, (emberLeft ? right : left).transform.position);
-            PlaceExitDoor(exitHolder, "ExitDoor1", emberPos, 1);
-            PlaceExitDoor(exitHolder, "ExitDoor2", wispPos, 2);
-            Debug.Log($"[LevelBuilder] legacy exits: {dragons.Count} Dragon(s) disabled, 2 ExitDoors placed");
-            HideLegacyExitProps();
-        }
-
-        /// <summary>
-        /// Drops a legacy doorway so its 2-tile body starts ON the floor:
-        /// step up out of any solid the raw point is buried in, then fall to
-        /// the first cell whose cell-below is solid. Keeps the authored spot
-        /// (with a loud warning) when no floor exists within reach.
-        /// </summary>
-        static Vector3 GroundLegacyDoor(Tilemap colliderTilemap, Vector3 raw)
-        {
-            if (colliderTilemap == null)
-                return raw;
-            Vector3Int cell = colliderTilemap.WorldToCell(raw);
-            for (int up = 0; colliderTilemap.HasTile(cell) && up < 4; up++)
-                cell.y += 1;
-            if (colliderTilemap.HasTile(cell))
-            {
-                Debug.LogWarning($"[DoorPass] door at {raw} is buried in the collider tilemap — left at authored spot");
-                return raw;
-            }
-            int down = 0;
-            while (!colliderTilemap.HasTile(cell + Vector3Int.down) && down++ < 12)
-                cell.y -= 1;
-            if (!colliderTilemap.HasTile(cell + Vector3Int.down))
-            {
-                Debug.LogWarning($"[DoorPass] no floor within 12 tiles below {raw} — door left at authored spot");
-                return raw;
-            }
-            float surfaceY = colliderTilemap.layoutGrid.CellToWorld(cell).y;
-            Vector3 grounded = new Vector3(raw.x, surfaceY + 1f, 0f);
-            if (Mathf.Abs(grounded.y - raw.y) > 0.01f)
-                Debug.Log($"[DoorPass] grounded door {raw} -> {grounded}");
-            return grounded;
-        }
-
-        /// <summary>
-        /// Playtest 6 (P0): the only door-like visuals left standing must be
-        /// the two ExitDoors. Idempotently hides the dead legacy exit props —
-        /// "Dragon"-tagged portals plus the hand-authored "Door"/"Portal"/
-        /// "Arch" prop clusters (L2/L3 carry a "Door" holder with the old
-        /// portals and a decorative pack crystal; the Crystal prefab has no
-        /// scripts, so nothing functional is lost). Logs every object it
-        /// touches so the batchmode log proves the sweep.
-        /// </summary>
-        static void HideLegacyExitProps()
-        {
-            int hidden = 0, already = 0;
-            foreach (Transform t in Object.FindObjectsOfType<Transform>(true))
-            {
-                GameObject go = t.gameObject;
-                if (!go.scene.IsValid() || go.name.StartsWith(GenPrefix))
-                    continue;
-                // Never touch the real doors (or anything holding one).
-                if (go.GetComponentInChildren<ExitDoor>(true) != null)
-                    continue;
-                bool dragon = go.CompareTag("Dragon");
-                string n = go.name;
-                bool doorProp = n == "Door" || n.StartsWith("Door (") ||
-                                n.StartsWith("Portal") || n.StartsWith("Arch");
-                if (!dragon && !doorProp)
-                    continue;
-                if (go.activeSelf)
-                {
-                    go.SetActive(false);
-                    hidden++;
-                    Debug.Log($"[LegacyDoorCleanup] hid {(dragon ? "Dragon portal" : "dead door prop")} '{n}' at {t.position}");
-                }
-                else
-                {
-                    already++;
-                }
-            }
-            Debug.Log($"[LegacyDoorCleanup] {hidden} hidden this run, {already} already hidden — ExitDoors are the only door visuals left");
-        }
 
         /// <summary>
         /// Generated levels: drop the doorway to the floor — the authored
@@ -447,33 +197,6 @@ namespace Escape.EditorAutomation
         {
             return frames.Select(f => FirstSprite(sheet, baseName + "_" + f))
                 .Where(s => s != null).ToArray();
-        }
-
-        /// <summary>
-        /// Places contextual hints next to the ACTUAL instantiated mechanics
-        /// in the current scene (used for the legacy levels whose original
-        /// instruction text is stripped). Always-show, one per mechanic type.
-        /// </summary>
-        static void AddSceneContextualHints(GameObject holder)
-        {
-            var p1Powerup = Object.FindObjectOfType<PowerUpOne>();
-            if (p1Powerup != null)
-                AddHint(holder, "Red orb: the ember hero can now\ntap B to shoot fireballs!",
-                    p1Powerup.transform.position + new Vector3(0, 2, 0), true, false);
-            var p2Powerup = Object.FindObjectOfType<PowerUpTwo>();
-            if (p2Powerup != null)
-                AddHint(holder, "Blue orb: the wisp hero can tap B to\nbecome a platform to boost a partner",
-                    p2Powerup.transform.position + new Vector3(0, 2, 0), true, false);
-            var lever = Object.FindObjectOfType<IndieMarc.Platformer.Lever>();
-            if (lever != null)
-                AddHint(holder, "Touch a lever to extend its bridge",
-                    lever.transform.position + new Vector3(0, 2, 0), true, false);
-            foreach (GameObject lava in GameObject.FindGameObjectsWithTag("LavaSquare"))
-            {
-                AddHint(holder, "Lava is instant death —\ntime your jumps",
-                    lava.transform.position + new Vector3(0, 2.5f, 0), true, false);
-                break;
-            }
         }
 
         // ---------------- tilemaps ----------------
@@ -683,75 +406,6 @@ namespace Escape.EditorAutomation
             obj.transform.position = floorAt + new Vector3(0f, 0.275f, 0f);
         }
 
-        /// <summary>
-        /// Legacy L1-3 visual dressing. HARD RULE: the collider tilemap is
-        /// geometry and must stay byte-identical — every addition goes on a
-        /// separate GEN_ object layer, and a used-cell hash of the collider
-        /// tilemap is recorded before/after and errors on any mismatch.
-        /// </summary>
-        static void DecorateLegacyLevel(LevelDefinition def)
-        {
-            Tilemap colliderTilemap = FindColliderTilemap();
-            if (colliderTilemap == null || colliderTilemap.GetComponent<TilemapCollider2D>() == null)
-            {
-                Debug.LogError($"[LegacyDecor] L{def.levelNumber}: collider tilemap not found — decor skipped");
-                return;
-            }
-            long before = ColliderTilemapHash(colliderTilemap);
-
-            var doorSpots = Object.FindObjectsOfType<ExitDoor>()
-                .Select(d => d.transform.position).ToList();
-            GameObject holder = new GameObject(GenPrefix + "LegacyDecor");
-            colliderTilemap.CompressBounds();
-            BoundsInt b = colliderTilemap.cellBounds;
-            int placed = 0;
-            for (int x = b.xMin; x < b.xMax && placed < 30; x++)
-                for (int y = b.yMin + 1; y < b.yMax - 1; y++)
-                {
-                    var cell = new Vector3Int(x, y, 0);
-                    if (colliderTilemap.HasTile(cell) ||
-                        colliderTilemap.HasTile(cell + Vector3Int.up) ||
-                        !colliderTilemap.HasTile(cell + Vector3Int.down))
-                        continue;
-                    if (CellHash(x * 5 + 3, y * 7 + 1) % 100 >= 5)
-                        continue;
-                    Vector3 at = colliderTilemap.layoutGrid.CellToWorld(cell) + new Vector3(0.5f, 0f, 0f);
-                    if (doorSpots.Any(d => Mathf.Abs(d.x - at.x) < 2.5f && Mathf.Abs(d.y - at.y) < 2.5f))
-                        continue;
-                    Sprite sprite = FindGrottoSprite(DecorPropSprites[CellHash(x, y) % DecorPropSprites.Length]);
-                    if (sprite == null)
-                        continue;
-                    PlaceDecorProp(holder, at, sprite, $"{GenPrefix}Decor_{x}_{y}");
-                    placed++;
-                }
-
-            long after = ColliderTilemapHash(colliderTilemap);
-            if (before != after)
-                Debug.LogError($"[LegacyDecor] L{def.levelNumber}: COLLIDER TILEMAP CHANGED " +
-                               $"(hash {before:X16} -> {after:X16}) — geometry rule violated!");
-            else
-                Debug.Log($"[LegacyDecor] L{def.levelNumber}: {placed} props on separate non-collider layer; " +
-                          $"collider tilemap hash {before:X16} unchanged");
-        }
-
-        /// <summary>Order-stable hash of every used cell (position + tile
-        /// asset name) in the tilemap — the byte-identical guard for legacy
-        /// collider geometry.</summary>
-        internal static long ColliderTilemapHash(Tilemap map)
-        {
-            long h = 17;
-            foreach (Vector3Int p in map.cellBounds.allPositionsWithin)
-            {
-                TileBase tile = map.GetTile(p);
-                if (tile == null)
-                    continue;
-                h = h * 31 + p.x;
-                h = h * 31 + p.y;
-                h = h * 31 + (tile.name != null ? tile.name.GetHashCode() : 0);
-            }
-            return h;
-        }
-
         static Tilemap NewTilemap(GameObject grid, string name)
         {
             GameObject obj = new GameObject(name, typeof(Tilemap), typeof(TilemapRenderer));
@@ -932,8 +586,9 @@ namespace Escape.EditorAutomation
         /// </summary>
         static void BuildHints(LevelDefinition def, GameObject holder)
         {
-            // The onboarding chain follows the shipped progression's first
-            // level (legacy 1-3 are disabled via SceneRouter.FirstLevel).
+            // The onboarding chain bakes into the shipped progression's
+            // first level (SceneRouter.FirstLevel — L1 "First Light", whose
+            // flat floor the anchors below assume).
             if (def.levelNumber == SceneRouter.FirstLevel)
             {
                 AddHint(holder, "Hold < > to move, tap A to jump\n(tap A again mid-air!)",
@@ -999,10 +654,9 @@ namespace Escape.EditorAutomation
         }
 
         /// <summary>
-        /// The legacy scenes carry TWO tilemaps: a completely-full background
-        /// layer (tiles == bounds area — no clear cells at all) and the real
-        /// platform layer with the TilemapCollider2D. Only the collider layer
-        /// represents standable geometry.
+        /// Scenes carry multiple tilemaps (deco/lava layers have no
+        /// colliders) — only the layer with the TilemapCollider2D represents
+        /// standable geometry. Used by PlaytestFixes.EaseLevelOne.
         /// </summary>
         internal static Tilemap FindColliderTilemap()
         {

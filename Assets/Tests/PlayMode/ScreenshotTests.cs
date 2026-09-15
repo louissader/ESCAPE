@@ -54,7 +54,7 @@ public class ScreenshotTests
         try
         {
             // Shipped progression only, named by the number PLAYERS see —
-            // store screenshots must never show disabled legacy levels.
+            // store screenshots must never show levels outside FirstLevel..LevelCount.
             for (int n = SceneRouter.FirstLevel; n <= SceneRouter.LevelCount; n++)
             {
                 AsyncOperation op = SceneManager.LoadSceneAsync(SceneRouter.LevelSceneName(n));

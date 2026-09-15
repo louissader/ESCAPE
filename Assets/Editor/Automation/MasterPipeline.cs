@@ -30,11 +30,10 @@ namespace Escape.EditorAutomation
             failed += Step("BuildTouchControlsPrefab", TouchControlsBuilder.BuildTouchControlsPrefab);
             failed += Step("BuildGameplayUIPrefab", HUDBuilder.BuildGameplayUIPrefab);
             failed += Step("ConfigureAudio", AudioSetup.ConfigureAudio);
-            failed += Step("ExtractExistingLevels", LevelExtractor.ExtractExistingLevels);
             failed += Step("CreateLevelDefinitions", LevelLibrary.CreateAll);
             failed += Step("BuildAllLevels", LevelBuilder.BuildAllLevels);
-            // Powerup pass must FOLLOW level building: BuildAllLevels re-instantiates
-            // generated-level pickups (and legacy scenes are re-saved by the augment pass).
+            // Powerup pass must FOLLOW level building: BuildAllLevels
+            // re-instantiates every level's pickups.
             failed += Step("FixPowerupVisuals", PlaytestFixes.FixPowerupVisuals);
             failed += Step("RebuildLevelSelect", LevelMenuBuilder.Run);
             failed += Step("EnsureMoreLoreSafeArea", ProjectMaintenance.EnsureMoreLoreSafeArea);
@@ -74,13 +73,14 @@ namespace Escape.EditorAutomation
             failed += Step("BuildIntroCutscene", IntroCutsceneBuilder.Run);
             failed += Step("BuildHowToPlayPanels", HowToPlayBuilder.Run);
             failed += Step("BuildTitleScreen", TitleScreenBuilder.Run);
-            // Doors + animated lava wire up inside BuildAllLevels (generated
-            // + legacy augment paths), followed by the solvability gate.
+            // Definitions FIRST so the scenes always bake from the authored
+            // code (never from stale .asset state), then doors + animated
+            // lava wire up inside BuildAllLevels + the solvability gate.
+            failed += Step("CreateLevelDefinitions", LevelLibrary.CreateAll);
             failed += Step("BuildAllLevels", LevelBuilder.BuildAllLevels);
-            // Powerup pass must FOLLOW level building: BuildAllLevels re-instantiates
-            // generated-level pickups (and legacy scenes are re-saved by the augment pass).
+            // Powerup pass must FOLLOW level building: BuildAllLevels
+            // re-instantiates every level's pickups.
             failed += Step("FixPowerupVisuals", PlaytestFixes.FixPowerupVisuals);
-            failed += Step("StripLegacyUI", PlaytestFixes.StripLegacyUI);
             // After BuildAllLevels: its GEN_ sweep clears the easing objects.
             failed += Step("EaseLevelOne", PlaytestFixes.EaseLevelOne);
             failed += Step("RebuildLevelSelect", LevelMenuBuilder.Run);

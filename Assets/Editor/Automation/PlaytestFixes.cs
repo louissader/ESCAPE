@@ -20,7 +20,6 @@ namespace Escape.EditorAutomation
         {
             FixPlayerPhysics();
             RecolorPowerups();
-            StripLegacyUI();
             EaseLevelOne();
             AssetDatabase.SaveAssets();
             Debug.Log("[PlaytestFixes] all applied");
@@ -303,9 +302,9 @@ namespace Escape.EditorAutomation
         public static void EaseLevelOne()
         {
             const string holderName = "GEN_EaseL1";
-            // Eases the FIRST level of the shipped progression (Skeleton
-            // Halls while legacy 1-3 are disabled via SceneRouter.FirstLevel
-            // — it was designed as mid-game, so the easing matters more).
+            // Eases the FIRST level of the shipped progression (L1 "First
+            // Light" — already gentle by design; this pass just adds a
+            // midway torch + heart and softens enemy speeds further).
             var scene = EditorSceneManager.OpenScene(
                 $"Assets/Scenes/{SceneRouter.LevelSceneName(SceneRouter.FirstLevel)}.unity",
                 OpenSceneMode.Single);
@@ -378,33 +377,5 @@ namespace Escape.EditorAutomation
             return 1;
         }
 
-        /// <summary>
-        /// Removes the original per-scene UI from the legacy levels 1-3 so the
-        /// single GameplayUI/TouchControls prefabs are the only UI — fixes the
-        /// inconsistent menu layout and the mis-wired old buttons that sent
-        /// "continue" to the ending. Only canvases NOT named GameplayUI /
-        /// TouchControls are removed.
-        /// </summary>
-        [MenuItem("Escape/Playtest Fixes/Strip Legacy UI")]
-        public static void StripLegacyUI()
-        {
-            for (int level = 1; level <= 3; level++)
-            {
-                string path = $"Assets/Scenes/Level {level}.unity";
-                var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
-                int removed = 0;
-                foreach (Canvas canvas in Object.FindObjectsOfType<Canvas>(true))
-                {
-                    string n = canvas.gameObject.name;
-                    if (n == "GameplayUI" || n == "TouchControls")
-                        continue;
-                    Object.DestroyImmediate(canvas.gameObject);
-                    removed++;
-                }
-                if (removed > 0)
-                    EditorSceneManager.SaveScene(scene);
-                Debug.Log($"[PlaytestFixes] L{level}: removed {removed} legacy canvas(es)");
-            }
-        }
     }
 }

@@ -6,8 +6,8 @@ using UnityEngine.TestTools;
 using IndieMarc.Platformer;
 
 /// <summary>
-/// Playtest 6 (P0): the two-door win must actually FIRE on a legacy level.
-/// Level 2's saved scene carries both ExitDoors; this drives both heroes
+/// Playtest 6 (P0): the two-door win must actually FIRE in a built level.
+/// Level 2's generated scene carries both ExitDoors; this drives both heroes
 /// onto their trigger centers and asserts the win handoff (ExitDoor sets
 /// GameState.dragonCount = 2 after the open animation; LevelEndController
 /// then shows the win panel when the in-level UI exists).

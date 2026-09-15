@@ -45,7 +45,7 @@ public class RenderDiagnostics
                 yield return null;
             }
 
-            // Relative checks: legacy scenes live at negative world coords.
+            // Relative checks, robust to any scene's world origin.
             Debug.Log($"[RD] L{n} after 2s: P1 y {y1Start:F1}→{p1.transform.position.y:F1}, " +
                       $"P2 y {y2Start:F1}→{p2.transform.position.y:F1}");
             Assert.Greater(p1.transform.position.y, y1Start - 5f,

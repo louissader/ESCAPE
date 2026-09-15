@@ -26,13 +26,13 @@ public class ObjectiveBanner : MonoBehaviour
     static readonly string[] Lines =
     {
         null,
-        "Find the star. Reach your doors. Together.",       // L1 onboarding
-        "Levers raise bridges. Reach your doors. Together.", // L2 lever + bridge
-        "Ghosts haunt these halls. Slip past. Together.",   // L3 ghosts
+        "Move. Jump. Reach your doors. Together.",          // L1 First Light (onboarding)
+        "High road, low road. Swap heroes. Meet at the doors.", // L2 Two Paths (swap + lever)
+        "Burn the bones. Boost your partner. Together.",    // L3 Spark (orbs + skeletons)
         "Two levers. Two bridges. Cross the bones together.", // L4 Skeleton Halls
         "The eyes are watching. Climb the shaft. Together.", // L5 The Depths (vertical climb)
         "Time the frogs. Cross the lava. Together.",        // L6 Frogmarch
-        "Two paths. One way out. Meet at the doors.",       // L7 Twin Trials (split lanes)
+        "Split up. One way out. Meet at the doors.",        // L7 Twin Trials (split lanes)
         "The lava is rising. Climb, together, NOW.",        // L8 finale (lava riser)
     };
 

@@ -213,15 +213,34 @@ namespace Escape.EditorAutomation
             Image image = rect.gameObject.AddComponent<Image>();
             image.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
             image.type = Image.Type.Sliced;
-            // 0.55 alpha + dark outline for WCAG 1.4.11 (3:1 floor): at the
-            // old 0.35 the buttons measured 1.92:1 over lava/torch terrain,
-            // and 0.55 alone still only reaches ~2.6:1 - the outline supplies
-            // the missing edge contrast without dimming the playfield.
-            image.color = new Color(1f, 1f, 1f, 0.55f);
-            Outline outline = rect.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(0.05f, 0.05f, 0.1f, 0.9f);
-            outline.effectDistance = new Vector2(1f, 1f);
-            outline.useGraphicAlpha = false; // rim must stay dark over bright terrain
+            // Louis's playtest call (2026-09-07): the grey slabs read as
+            // blocking the playfield. GOTCHA: this project renders in LINEAR
+            // color space, so a low-alpha WHITE fill still displays as ~50%
+            // grey over dark terrain (0.22 linear -> ~0.5 sRGB) - lowering
+            // the alpha alone cannot make white look transparent here.
+            // Ghost-button style instead: near-black glassy fill (dims lava
+            // just enough for the label) + a light rim that defines the
+            // button over dark caves. TouchButton's pressed state still
+            // flashes bright for touch confirmation.
+            image.color = new Color(0.03f, 0.04f, 0.08f, 0.38f);
+
+            // The rim is a border-only child image (sliced, fillCenter off).
+            // NOT UnityEngine.UI.Outline: that component draws FOUR offset
+            // copies of the WHOLE sprite, which stacked into a solid light
+            // slab behind the translucent fill - the very "blocking the
+            // screen" look all three fill tweaks failed to fix.
+            RectTransform rimRect = NewRect("Rim", rect);
+            Stretch(rimRect);
+            Image rim = rimRect.gameObject.AddComponent<Image>();
+            rim.sprite = image.sprite;
+            rim.type = Image.Type.Sliced;
+            rim.fillCenter = false;
+            // Rim boost (Louis, 2026-09-08): near-white, full-strength rim,
+            // and pixelsPerUnitMultiplier 0.5 doubles the 9-slice border
+            // thickness - the transparent centre stays, the edge pops.
+            rim.color = new Color(0.96f, 0.98f, 1f, 0.95f);
+            rim.pixelsPerUnitMultiplier = 0.5f;
+            rim.raycastTarget = false;
 
             TouchButton button = rect.gameObject.AddComponent<TouchButton>();
 
@@ -229,9 +248,15 @@ namespace Escape.EditorAutomation
             Stretch(textRect);
             TextMeshProUGUI text = textRect.gameObject.AddComponent<TextMeshProUGUI>();
             text.text = label;
-            text.fontSize = size * 0.45f;
+            text.fontSize = size * 0.52f;
+            text.fontStyle = FontStyles.Bold;
             text.alignment = TextAlignmentOptions.Center;
-            text.color = new Color(0.1f, 0.1f, 0.15f, 0.9f);
+            // Light label + dark TMP outline: with the fill at 0.22 the
+            // old dark label vanished over cave terrain. The outline keeps
+            // it legible over lava and pale glow alike.
+            text.color = new Color(0.95f, 0.97f, 1f, 0.95f);
+            text.outlineWidth = 0.3f;
+            text.outlineColor = new Color32(10, 10, 26, 240);
             text.raycastTarget = false;
 
             return button;
