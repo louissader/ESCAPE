@@ -139,3 +139,15 @@ world render with no HUD, no touch controls, no pause button, no health bars.
 - [ ] Build 5, verify Info.plist reads 1.2.0 / 5 and deployment target 15.0.
 - [ ] Capture store screenshots from the FIXED build.
 - [ ] Resolution Center reply, then Resubmit.
+
+
+## FINAL REVIEW — 2026-09-15
+1.2.0 build 7 RESUBMITTED, status "Waiting for Review" (submission
+abcf9bc1). Reply posted 09-08. Journey: b5 (rejection fixes) -> Louis
+playtest -> b6 (new 8-level campaign, transparent controls) -> b7 (rim
+boost). Root causes worth remembering: UI.Outline = 4 sprite copies;
+linear color space makes low-alpha white read 50% grey; ASC Resubmit
+stays greyed until version-page "Update Review" flips the item to
+Ready for Review. Housekeeping post-submit: EmojiOne.asset deleted
+(reference already cleared in b5), 17 ShaderGraphSettings dupes removed.
+AWAITING: Apple verdict -> manual release by Louis.
