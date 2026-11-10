@@ -94,7 +94,7 @@ namespace Escape.EditorAutomation
 
                 // Title lifted 280 -> 360 to clear the taller button stack
                 // below (top edge 284 with the 136-unit rows).
-                TextMeshProUGUI title = MakeLabel(overlay, "Title", "PAUSED", 72,
+                TextMeshProUGUI title = MakeLabel(overlay, "Title", "PAUSED", 88,
                     new Vector2(0.5f, 0.5f), new Vector2(0, 360));
 
                 string[] labels = { "RESUME", "RESTART LEVEL", "SETTINGS", "LEVEL SELECT" };
@@ -222,7 +222,7 @@ namespace Escape.EditorAutomation
                 Stretch(winPanel);
                 Image winDim = winPanel.gameObject.AddComponent<Image>();
                 winDim.color = new Color(0.02f, 0.12f, 0.08f, 0.92f);
-                TextMeshProUGUI winTitle = MakeLabel(winPanel, "Title", "LEVEL COMPLETE", 76,
+                TextMeshProUGUI winTitle = MakeLabel(winPanel, "Title", "LEVEL COMPLETE", 88,
                     new Vector2(0.5f, 0.5f), new Vector2(0, 260));
                 TextMeshProUGUI winCrystals = MakeLabel(winPanel, "Crystals", "STAR COINS 0 / 3", 44,
                     new Vector2(0.5f, 0.5f), new Vector2(0, 150));
@@ -242,7 +242,7 @@ namespace Escape.EditorAutomation
                 Stretch(failPanel);
                 Image failDim = failPanel.gameObject.AddComponent<Image>();
                 failDim.color = new Color(0.14f, 0.02f, 0.02f, 0.92f);
-                MakeLabel(failPanel, "Title", "YOU FELL", 76, new Vector2(0.5f, 0.5f), new Vector2(0, 200));
+                MakeLabel(failPanel, "Title", "YOU FELL", 88, new Vector2(0.5f, 0.5f), new Vector2(0, 200));
                 Button retryBtn = MakeTextButton(failPanel, "Btn_Retry", "RETRY",
                     new Vector2(0.5f, 0.5f), new Vector2(0, 40), new Vector2(560, 136));
                 UnityEventTools.AddPersistentListener(retryBtn.onClick, endController.OnRetry);
@@ -340,7 +340,7 @@ namespace Escape.EditorAutomation
 
             Image pill = NewRect(BannerName, hudRect).gameObject.AddComponent<Image>();
             Place((RectTransform)pill.transform, new Vector2(0.5f, 1f),
-                new Vector2(0, -160), new Vector2(760, 64));
+                new Vector2(0, -160), new Vector2(940, 84));
             pill.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
             pill.type = Image.Type.Sliced;
             pill.color = new Color(0.23f, 0.20f, 0.26f, 0.85f); // btn_small stone
@@ -358,14 +358,14 @@ namespace Escape.EditorAutomation
             textRect.offsetMin = new Vector2(28, 6);
             textRect.offsetMax = new Vector2(-28, -6);
             text.enableAutoSizing = true;  // longest line must fit the pill
-            text.fontSizeMin = 18;
-            text.fontSizeMax = 32;
+            text.fontSizeMin = 28;         // playtest 7: 18-32 was unreadable on phones
+            text.fontSizeMax = 44;
             text.color = new Color(0.93f, 0.90f, 0.85f, 1f);
 
             ObjectiveBanner banner = pill.gameObject.AddComponent<ObjectiveBanner>();
             SetPrivate(banner, "label", text);
             SetPrivate(banner, "group", group);
-            Debug.Log($"[HUDBuilder] {BannerName} created: top-center pill 760x64 at y -160, fade wired");
+            Debug.Log($"[HUDBuilder] {BannerName} created: top-center pill 940x84 at y -160, fade wired");
         }
 
         [MenuItem("Escape/Add GameplayUI To Level Scenes")]
@@ -511,7 +511,7 @@ namespace Escape.EditorAutomation
             button.navigation = new Navigation { mode = Navigation.Mode.None };
 
             TextMeshProUGUI text = MakeLabel((RectTransform)img.transform, "Label", label,
-                Mathf.Min(44, size.y * 0.42f), new Vector2(0.5f, 0.5f), Vector2.zero);
+                Mathf.Min(52, size.y * 0.42f), new Vector2(0.5f, 0.5f), Vector2.zero);
             RectTransform textRect = (RectTransform)text.transform;
             Stretch(textRect);
             return button;

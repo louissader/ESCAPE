@@ -255,11 +255,18 @@ namespace Escape.EditorAutomation
             g.Floor(0);
             g.Wall(0, 1, 29);
             g.Wall(45, 1, 29);
+            // Playtest 7: the climb was six raw +3 zigzag jumps — stepping
+            // stones now split every leg into +1/+2 hops, and D is one wider.
             g.Platform(8, 3, 5);
+            g.Platform(13, 4, 2);    // A->B step
             g.Platform(16, 6, 5);
+            g.Platform(14, 7, 2);    // B->C step
             g.Platform(9, 9, 5);
-            g.Platform(17, 12, 6);
+            g.Platform(14, 10, 2);   // C->D step
+            g.Platform(16, 12, 7);   // D, widened one tile left
+            g.Platform(15, 13, 1);   // D->E step
             g.Platform(10, 15, 5);
+            g.Platform(15, 17, 1);   // E->F step
             g.Platform(18, 18, 5);
             g.Platform(26, 10, 3);
             g.Platform(28, 24, 4);
@@ -276,10 +283,13 @@ namespace Escape.EditorAutomation
             def.exit2 = V(42, 25);
             def.enemies = new[]
             {
-                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(17, 8), moveRange = 2.0f },
-                new LevelDefinition.EnemyPlacement { type = ET.BatPassive, position = V(14, 11), moveRange = 2.0f },
-                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(11, 17), moveRange = 2.0f },
-                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(20, 21), moveRange = 2.0f },
+                // Playtest 7: flyers moved OFF the climb. Eyes home within
+                // aggro 8, so they idle >8 tiles from every jump arc; the bat
+                // and ghost wander boxes no longer cross any gap.
+                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(30, 6), moveRange = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.BatPassive, position = V(5, 12), moveRange = 1.5f },
+                new LevelDefinition.EnemyPlacement { type = ET.Eye, position = V(3, 21), moveRange = 2.0f },
+                new LevelDefinition.EnemyPlacement { type = ET.Ghost, position = V(22, 25), moveRange = 1.5f },
                 new LevelDefinition.EnemyPlacement { type = ET.Skeleton, position = V(37, 25), patrolSpan = 1.5f },
             };
             def.leverGroups = new[]

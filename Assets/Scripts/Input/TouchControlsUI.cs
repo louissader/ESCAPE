@@ -33,8 +33,16 @@ public class TouchControlsUI : MonoBehaviour
     public TouchButton p2Jump;
     public TouchButton p2Action;
 
+    [Header("Idle fade (playtest 7: controls covered too much screen)")]
+    [Tooltip("Alpha the controls settle to while untouched")]
+    public float idleAlpha = 0.4f;
+    [Tooltip("Seconds without a held button before fading starts")]
+    public float idleDelay = 1.5f;
+    public float fadeSpeed = 4f;
+
     ControlMode mode;
     CanvasGroup canvasGroup; // added at runtime; the baked prefab has none
+    float lastHeldTime;
 
     void Start()
     {
@@ -112,6 +120,7 @@ public class TouchControlsUI : MonoBehaviour
             canvasGroup.blocksRaycasts = !open;
             canvasGroup.interactable = !open;
         }
+        lastHeldTime = Time.unscaledTime; // resume fully visible, fade later
         VirtualInputRouter.Get(1).Clear();
         VirtualInputRouter.Get(2).Clear();
     }
@@ -139,6 +148,36 @@ public class TouchControlsUI : MonoBehaviour
             WriteHolds(VirtualInputRouter.Get(1), p1Left, p1Down, p1Right, p1Jump, p1Action);
             WriteHolds(VirtualInputRouter.Get(2), p2Left, p2Down, p2Right, p2Jump, p2Action);
         }
+
+        UpdateIdleFade();
+    }
+
+    /// <summary>Controls ghost to idleAlpha while no button is held, and snap
+    /// back toward full the moment one is touched. Raycasts stay on — alpha
+    /// never affects hit testing, so a faded button still works.</summary>
+    void UpdateIdleFade()
+    {
+        if (canvasGroup == null)
+            return;
+
+        bool held = mode == ControlMode.Swap
+            ? IsHeld(swapLeft) || IsHeld(swapDown) || IsHeld(swapRight)
+              || IsHeld(swapJump) || IsHeld(swapAction) || IsHeld(swapSwap)
+            : IsHeld(p1Left) || IsHeld(p1Down) || IsHeld(p1Right)
+              || IsHeld(p1Jump) || IsHeld(p1Action)
+              || IsHeld(p2Left) || IsHeld(p2Down) || IsHeld(p2Right)
+              || IsHeld(p2Jump) || IsHeld(p2Action);
+        if (held)
+            lastHeldTime = Time.unscaledTime;
+
+        float target = Time.unscaledTime - lastHeldTime < idleDelay ? 1f : idleAlpha;
+        canvasGroup.alpha = Mathf.MoveTowards(canvasGroup.alpha, target,
+            fadeSpeed * Time.unscaledDeltaTime);
+    }
+
+    static bool IsHeld(TouchButton b)
+    {
+        return b != null && b.IsHeld;
     }
 
     static VirtualInputChannel ActiveChannel()

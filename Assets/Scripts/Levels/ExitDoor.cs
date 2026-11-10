@@ -62,8 +62,8 @@ public class ExitDoor : MonoBehaviour
         get { return doors.Count > 0; }
     }
 
-    /// <summary>World-space center of the doorway trigger (ferry target for
-    /// the parked partner in swap mode).</summary>
+    /// <summary>World-space center of the doorway trigger (used by tests to
+    /// place heroes in the doorway).</summary>
     public Vector3 TriggerCenter
     {
         get { return doorTrigger != null ? doorTrigger.bounds.center : transform.position; }
@@ -104,7 +104,7 @@ public class ExitDoor : MonoBehaviour
     {
         bool inside = HeroInside();
         if (inside && !satisfied)
-            FerryParkedPartner();
+            HandOffToParkedPartner();
         satisfied = inside;
 
         if (AllDoorsSatisfied())
@@ -149,40 +149,27 @@ public class ExitDoor : MonoBehaviour
     }
 
     /// <summary>
-    /// Swap mode: a parked character must never be required to act — when the
-    /// piloted hero reaches its door, bring the parked partner to its own
-    /// door so the pair completes together (LavaRiser.Activate pattern).
+    /// Swap mode: BOTH heroes must reach their doors themselves (the old
+    /// ferry teleported the parked partner in, so one hero's arrival ended
+    /// the level). When the piloted hero arrives, hand control to the parked
+    /// partner so the player can immediately walk them over. Edge-triggered
+    /// from UpdateOccupancy, so stepping out and back never ping-pongs.
     /// </summary>
-    void FerryParkedPartner()
+    void HandOffToParkedPartner()
     {
         int partnerId = heroNumber == 1 ? 2 : 1;
         if (!SwapModeController.IsParked(partnerId))
-            return;
+            return; // co-op, or this door's hero is not the piloted one
 
-        ExitDoor partnerDoor = null;
         for (int i = 0; i < doors.Count; i++)
         {
-            if (doors[i].heroNumber == partnerId)
-            {
-                partnerDoor = doors[i];
-                break;
-            }
+            if (doors[i].heroNumber == partnerId && doors[i].HeroInside())
+                return; // partner already home — the win check handles it
         }
-        if (partnerDoor == null)
-            return;
 
-        if (partnerId == 1)
-        {
-            PlayerCharacterOne partner = PlayerCharacterOne.Get(1);
-            if (partner != null && partner.gameObject.activeSelf && !partner.IsDead())
-                partner.Teleport(partnerDoor.TriggerCenter);
-        }
-        else
-        {
-            PlayerCharacterTwo partner = PlayerCharacterTwo.Get(2);
-            if (partner != null && partner.gameObject.activeSelf && !partner.IsDead())
-                partner.Teleport(partnerDoor.TriggerCenter);
-        }
+        SwapModeController controller = SwapModeController.Instance;
+        if (controller != null)
+            controller.RequestSwap();
     }
 
     static void CommitWin(ExitDoor initiator)

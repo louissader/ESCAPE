@@ -141,7 +141,7 @@ namespace Escape.EditorAutomation
             SetPrivate(panel, "root", panelRect.gameObject);
             SetPrivate(panel, "canvasGroup", group);
 
-            MakeLabel(panelRect, "Title", "HOW TO PLAY", 64, new Vector2(0, 420), 1600);
+            MakeLabel(panelRect, "Title", "HOW TO PLAY", 72, new Vector2(0, 420), 1600);
 
             HeroRow(panelRect, "Basics", "CONTROLS", new Color(0.8f, 0.85f, 0.9f), 300,
                 "on-screen < > move   -   hold A to jump higher, tap again in mid-air   -   the top-right button pauses");
@@ -180,11 +180,11 @@ namespace Escape.EditorAutomation
         static void HeroRow(RectTransform parent, string name, string label, Color color,
                             float y, string description)
         {
-            TextMeshProUGUI title = MakeLabel(parent, name + "Name", label, 36,
+            TextMeshProUGUI title = MakeLabel(parent, name + "Name", label, 42,
                 new Vector2(-660, y), 320);
             title.color = color;
             title.alignment = TextAlignmentOptions.Left;
-            TextMeshProUGUI desc = MakeLabel(parent, name + "Controls", description, 30,
+            TextMeshProUGUI desc = MakeLabel(parent, name + "Controls", description, 36,
                 new Vector2(180, y), 1280);
             desc.alignment = TextAlignmentOptions.Left;
         }
@@ -206,7 +206,7 @@ namespace Escape.EditorAutomation
             TextMeshProUGUI text = NewRect("Label", row).gameObject.AddComponent<TextMeshProUGUI>();
             Place((RectTransform)text.transform, new Vector2(40, 0), new Vector2(300, 90));
             text.text = label;
-            text.fontSize = 30;
+            text.fontSize = 36;
             text.alignment = TextAlignmentOptions.Left;
             text.raycastTarget = false;
         }
@@ -262,7 +262,7 @@ namespace Escape.EditorAutomation
             button.navigation = new Navigation { mode = Navigation.Mode.None };
 
             TextMeshProUGUI text = MakeLabel((RectTransform)img.transform, "Label", label,
-                Mathf.Min(44, size.y * 0.42f), Vector2.zero, size.x);
+                Mathf.Min(52, size.y * 0.42f), Vector2.zero, size.x);
             Stretch((RectTransform)text.transform);
             return button;
         }

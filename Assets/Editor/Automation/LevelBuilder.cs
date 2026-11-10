@@ -613,7 +613,7 @@ namespace Escape.EditorAutomation
             foreach (var e in def.enemies)
             {
                 if (e.type == LevelDefinition.EnemyType.Skeleton)
-                { AddHint(holder, "Skeletons hit hard —\nshoot them or slip past", World(e.position) + new Vector3(-3, 2, 0), true, false); break; }
+                { AddHint(holder, "Skeletons hit hard -\nshoot them or slip past", World(e.position) + new Vector3(-3, 2, 0), true, false); break; }
             }
             foreach (var e in def.enemies)
             {
@@ -624,7 +624,7 @@ namespace Escape.EditorAutomation
             {
                 var mp = def.movingPlatforms[0];
                 AddHint(holder, mp.isLavaRiserRide
-                        ? "Ride up together — the lava rises!\nHit levers on time to stay ahead"
+                        ? "Ride up together - the lava rises!\nHit levers on time to stay ahead"
                         : "Ride the moving platform across",
                     World(mp.from) + new Vector3(0, 2, 0), true, false);
             }
@@ -633,7 +633,7 @@ namespace Escape.EditorAutomation
                 for (int x = 0; x < def.GridWidth; x++)
                     if (def.TileAt(x, y) == 'L')
                     {
-                        AddHint(holder, "Lava is instant death —\ntime your jumps",
+                        AddHint(holder, "Lava is instant death -\ntime your jumps",
                             new Vector3(x + 0.5f, y + 2.5f, 0), true, false);
                         return;
                     }

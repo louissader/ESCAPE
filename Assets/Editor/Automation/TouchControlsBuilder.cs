@@ -61,8 +61,9 @@ namespace Escape.EditorAutomation
                 ui.swapAction = Button(swap, "Btn_B", "B", SmallSize,
                     new Vector2(1, 0), new Vector2(-Margin - JumpSize - DpadGap, Margin), new Vector2(1, 0));
                 // Swap sits directly above A: thumb-reachable without leaving jump.
-                ui.swapSwap = Button(swap, "Btn_Swap", "<->", SmallSize,
+                ui.swapSwap = Button(swap, "Btn_Swap", "SWITCH TO", SmallSize,
                     new Vector2(1, 0), new Vector2(-Margin - 20f, Margin + JumpSize + DpadGap), new Vector2(1, 0));
+                StyleSwapButton(ui.swapSwap);
 
                 // ---- Co-op layout (mirrored edges, two thumbs per player) ----
                 RectTransform coop = NewRect("CoopLayout", safeArea);
@@ -198,6 +199,50 @@ namespace Escape.EditorAutomation
             float x = -(Margin + slot * (DpadSize + DpadGap));
             return Button(parent, name, label, DpadSize,
                 new Vector2(1, 0), new Vector2(x, Margin), new Vector2(1, 0));
+        }
+
+        /// <summary>
+        /// Playtest 7: the old "&lt;-&gt;" glyph said nothing. The swap button now
+        /// reads "SWITCH TO" over a portrait of the hero you'd switch into;
+        /// SwapButtonFace keeps the portrait pointed at the INACTIVE hero at
+        /// runtime (sprites baked here — runtime can't use AssetDatabase).
+        /// </summary>
+        static void StyleSwapButton(TouchButton swapButton)
+        {
+            RectTransform rect = (RectTransform)swapButton.transform;
+
+            var label = rect.Find("Label").GetComponent<TextMeshProUGUI>();
+            label.text = "SWITCH TO";
+            label.fontSize = 24f;
+            label.alignment = TextAlignmentOptions.Top;
+            label.enableWordWrapping = false;
+            RectTransform labelRect = (RectTransform)label.transform;
+            labelRect.offsetMin = new Vector2(4, 0);
+            labelRect.offsetMax = new Vector2(-4, -12);
+
+            RectTransform portraitRect = NewRect("Portrait", rect);
+            portraitRect.anchorMin = portraitRect.anchorMax = new Vector2(0.5f, 0f);
+            portraitRect.pivot = new Vector2(0.5f, 0f);
+            portraitRect.anchoredPosition = new Vector2(0, 12);
+            portraitRect.sizeDelta = new Vector2(66, 96); // hero frames are 16x24
+            Image portrait = portraitRect.gameObject.AddComponent<Image>();
+            portrait.preserveAspect = true;
+            portrait.raycastTarget = false;
+
+            SwapButtonFace face = rect.gameObject.AddComponent<SwapButtonFace>();
+            face.portrait = portrait;
+            face.emberSprite = HeroIdleSprite("hero1_ember");
+            face.wispSprite = HeroIdleSprite("hero2_wisp");
+        }
+
+        static Sprite HeroIdleSprite(string sheet)
+        {
+            string path = $"Assets/Art/Generated/Characters/{sheet}.png";
+            foreach (Object o in AssetDatabase.LoadAllAssetsAtPath(path))
+                if (o is Sprite s && s.name == sheet + "_idle_0")
+                    return s;
+            Debug.LogWarning($"[TouchControlsBuilder] {sheet}_idle_0 missing at {path} — swap portrait stays empty");
+            return null;
         }
 
         static TouchButton Button(RectTransform parent, string name, string label,

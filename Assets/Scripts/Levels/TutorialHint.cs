@@ -94,17 +94,42 @@ public class TutorialHint : MonoBehaviour
     {
         bubble = new GameObject("HintBubble");
         bubble.transform.SetParent(transform, false);
-        bubble.transform.localPosition = new Vector3(0f, 1.5f, 0f);
+        bubble.transform.localPosition = new Vector3(0f, 2.1f, 0f);
+
+        // Dark backing pill: hints were white-on-world and font size 3 —
+        // unreadable on a phone at gameplay zoom (playtest 7).
+        var bg = new GameObject("HintBg");
+        bg.transform.SetParent(bubble.transform, false);
+        var bgSprite = bg.AddComponent<SpriteRenderer>();
+        bgSprite.sprite = SolidSprite();
+        bgSprite.color = new Color(0f, 0f, 0f, 0.62f);
+        bgSprite.sortingOrder = 49;
+        bg.transform.localScale = new Vector3(13.6f, 5.0f, 1f);
 
         var text = bubble.AddComponent<TextMeshPro>();
         text.text = message;
-        text.fontSize = 3;
+        text.fontSize = 5.5f;
         text.alignment = TextAlignmentOptions.Center;
         text.sortingOrder = 50;
         var rect = text.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(8f, 3f);
+        rect.sizeDelta = new Vector2(13f, 4.5f);
 
         shownAt = Time.unscaledTime;
+    }
+
+    static Sprite solidSprite;
+
+    /// <summary>1x1 white sprite at 1 PPU, scaled into the hint backing.</summary>
+    static Sprite SolidSprite()
+    {
+        if (solidSprite == null)
+        {
+            var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            tex.SetPixel(0, 0, Color.white);
+            tex.Apply();
+            solidSprite = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
+        }
+        return solidSprite;
     }
 
     /// <summary>

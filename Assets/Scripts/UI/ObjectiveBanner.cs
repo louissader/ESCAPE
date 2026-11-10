@@ -20,13 +20,13 @@ public class ObjectiveBanner : MonoBehaviour
 
     const float FadeSeconds = 0.4f;
 
-    const string DefaultLine = "Reach your doors. Together.";
+    const string DefaultLine = "Get BOTH heroes to their doors.";
 
     // Index = level number (1..SceneRouter.LevelCount); 0 unused.
     static readonly string[] Lines =
     {
         null,
-        "Move. Jump. Reach your doors. Together.",          // L1 First Light (onboarding)
+        "Move. Jump. Get BOTH heroes to their doors.",      // L1 First Light (onboarding)
         "High road, low road. Swap heroes. Meet at the doors.", // L2 Two Paths (swap + lever)
         "Burn the bones. Boost your partner. Together.",    // L3 Spark (orbs + skeletons)
         "Two levers. Two bridges. Cross the bones together.", // L4 Skeleton Halls
