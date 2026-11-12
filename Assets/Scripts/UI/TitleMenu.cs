@@ -28,6 +28,8 @@ public class TitleMenu : MonoBehaviour
     public HowToPlayPanel howToPlayPanel;
 
     CanvasGroup submenuGroup;
+    TextMeshProUGUI versionText;
+    bool devUnlockFired;
 
     void Start()
     {
@@ -39,12 +41,36 @@ public class TitleMenu : MonoBehaviour
 
         GameObject versionLabel = GameObject.Find("VersionLabel");
         if (versionLabel != null &&
-            versionLabel.TryGetComponent(out TextMeshProUGUI versionText))
+            versionLabel.TryGetComponent(out versionText))
             versionText.text = "v" + Application.version;
+    }
+
+    /// <summary>Playtest backdoor: a simultaneous four-finger tap anywhere
+    /// on the title screen (U key in the editor) unlocks every level.
+    /// One-shot per visit; the version label doubles as the confirmation.</summary>
+    void CheckDevUnlock()
+    {
+        if (devUnlockFired)
+            return;
+
+        bool triggered = Input.GetKeyDown(KeyCode.U);
+        if (Input.touchCount >= 4)
+            for (int i = 0; i < Input.touchCount && !triggered; i++)
+                triggered = Input.GetTouch(i).phase == TouchPhase.Began;
+        if (!triggered)
+            return;
+
+        devUnlockFired = true;
+        SaveSystem.DevUnlockAllLevels();
+        AudioManager.PlaySfx("ui_tap");
+        if (versionText != null)
+            versionText.text = "v" + Application.version + " - ALL LEVELS UNLOCKED";
     }
 
     void Update()
     {
+        CheckDevUnlock();
+
         // Android back button maps to Escape in the legacy input manager.
         // The how-to-play card owns the key while it shows (and for the
         // press that closed it — Update order between the two is arbitrary).

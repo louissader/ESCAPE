@@ -86,6 +86,15 @@ public static class SaveSystem
         return PlayerPrefs.GetInt(KeyCompletedPrefix + levelNumber, 0) == 1;
     }
 
+    /// <summary>Playtest backdoor (four-finger tap on the title screen):
+    /// opens every level without marking any completed, so stars and the
+    /// completion flags stay honest.</summary>
+    public static void DevUnlockAllLevels()
+    {
+        HighestUnlockedLevel = SceneRouter.LevelCount;
+        PlayerPrefs.Save();
+    }
+
     /// <summary>Level that just got beaten (0 = none). Cleared after the
     /// level-select celebration animation plays once.</summary>
     public static int ConsumeLastCompleted()
