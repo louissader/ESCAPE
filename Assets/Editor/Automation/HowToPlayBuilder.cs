@@ -135,7 +135,9 @@ namespace Escape.EditorAutomation
             RectTransform panelRect = NewRect("HowToPlayPanel", parent);
             Stretch(panelRect);
             Image dim = panelRect.gameObject.AddComponent<Image>();
-            dim.color = new Color(0.02f, 0.09f, 0.13f, 0.97f);   // matches SettingsPanel
+            // Fully opaque: at 0.97 the title screen's bright text ghosted
+            // through behind the instructions (playtest 8).
+            dim.color = new Color(0.02f, 0.09f, 0.13f, 1f);
             CanvasGroup group = panelRect.gameObject.AddComponent<CanvasGroup>();
             HowToPlayPanel panel = panelRect.gameObject.AddComponent<HowToPlayPanel>();
             SetPrivate(panel, "root", panelRect.gameObject);
@@ -143,12 +145,16 @@ namespace Escape.EditorAutomation
 
             MakeLabel(panelRect, "Title", "HOW TO PLAY", 72, new Vector2(0, 420), 1600);
 
+            // Playtest 9: A/B are gone from the buttons (JUMP label + power
+            // icons), so the copy names the buttons by what they show. The
+            // old "tap again in mid-air" line described a double jump that
+            // double_jump = 0 never allowed.
             HeroRow(panelRect, "Basics", "CONTROLS", new Color(0.8f, 0.85f, 0.9f), 300,
-                "on-screen < > move   -   hold A to jump higher, tap again in mid-air   -   the top-right button pauses");
+                "on-screen < > move   -   hold JUMP to jump higher   -   the top-right button pauses");
             HeroRow(panelRect, "Ember", "EMBER", EmberColor, 210,
-                "tap B to shoot a fireball (needs a red orb)");
+                "grab a red orb, then tap the fireball button to shoot");
             HeroRow(panelRect, "Wisp", "WISP", WispColor, 120,
-                "tap B to become a platform (needs a blue orb)");
+                "grab a blue orb, then tap the crystal button to become a platform");
             HeroRow(panelRect, "Swap", "ONE PLAYER", new Color(1f, 0.9f, 0.4f), 30,
                 "tap SWAP or the other hero's portrait to switch - the waiting hero is safe");
             MakeLabel(panelRect, "Goal", "BOTH heroes must stand in their matching doors to escape!",

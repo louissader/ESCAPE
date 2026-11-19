@@ -390,8 +390,10 @@ namespace Escape.EditorAutomation
             def.tileGrid = g.Emit();
             def.player1Spawn = V(2, 1);
             def.player2Spawn = V(3, 1);
-            def.exit1 = V(51, 1);
-            def.exit2 = V(53, 1);
+            // Playtest 9.5: doors moved up onto the last top-lane slab
+            // (x42-49, surface y10), past the lever bridge.
+            def.exit1 = V(45, 10);
+            def.exit2 = V(48, 10);
             def.enemies = new[]
             {
                 new LevelDefinition.EnemyPlacement { type = ET.Slime, position = V(10, 1), patrolSpan = 3.0f },

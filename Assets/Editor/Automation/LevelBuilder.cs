@@ -498,10 +498,16 @@ namespace Escape.EditorAutomation
             }
 
             // 1.8 tiles: keep in lockstep with PlaytestFixes.SwapPowerupSprite.
+            // Raised 1.5 above the tile centre (playtest 9: orbs clipped into
+            // the floor): the orb is 2 world units tall with a centre pivot
+            // and bobs ±0.5 (PowerUpAnimation), so an anchor at tile-centre
+            // put its bottom a full tile underground at the low point. At
+            // +1.5 the bob minimum keeps the sprite 0.5 above the floor top.
+            Vector3 orbLift = Vector3.up * 1.5f;
             foreach (Vector2Int p in def.powerUpOne)
-                NormalizeSpriteHeight(Place(PowerUp1Prefab, World(p), holder, "PowerUpOne", asPrefab: true), 1.8f);
+                NormalizeSpriteHeight(Place(PowerUp1Prefab, World(p) + orbLift, holder, "PowerUpOne", asPrefab: true), 1.8f);
             foreach (Vector2Int p in def.powerUpTwo)
-                NormalizeSpriteHeight(Place(PowerUp2Prefab, World(p), holder, "PowerUpTwo", asPrefab: true), 1.8f);
+                NormalizeSpriteHeight(Place(PowerUp2Prefab, World(p) + orbLift, holder, "PowerUpTwo", asPrefab: true), 1.8f);
 
             foreach (Vector2Int p in def.hearts)
                 AddHeart(holder, World(p));
@@ -580,9 +586,9 @@ namespace Escape.EditorAutomation
         }
 
         /// <summary>
-        /// L1 gets the gated first-launch onboarding chain; every level gets
-        /// contextual "always show" bubbles next to its mechanics so the
-        /// player is never surprised by a new hazard.
+        /// L1 gets the gated first-launch onboarding chain; L1-2 also get
+        /// contextual "always show" bubbles next to their mechanics. L3+ get
+        /// NO bubbles - each level's ObjectiveBanner line teaches instead.
         /// </summary>
         static void BuildHints(LevelDefinition def, GameObject holder)
         {
@@ -591,7 +597,10 @@ namespace Escape.EditorAutomation
             // flat floor the anchors below assume).
             if (def.levelNumber == SceneRouter.FirstLevel)
             {
-                AddHint(holder, "Hold < > to move, tap A to jump\n(tap A again mid-air!)",
+                // "tap A again mid-air" was a lie: double_jump is 0 on both
+                // hero prefabs, so the move it taught never existed. Teach
+                // the real mechanic (held jump = full arc) instead.
+                AddHint(holder, "Hold < > to move, tap JUMP to jump\n(hold JUMP to jump higher!)",
                     World(def.player1Spawn) + new Vector3(2, 0, 0), false, false);
                 AddHint(holder, "Tap the SWAP button (or your partner's portrait)\nto control the other hero",
                     World(def.player1Spawn) + new Vector3(8, 0, 0), false, false);
@@ -599,13 +608,20 @@ namespace Escape.EditorAutomation
                     World(def.exit1) + new Vector3(-6, 0, 0), false, true);
             }
 
+            // Playtest 9.5: black-box bubbles teach only on L1-2. From L3 on
+            // the ObjectiveBanner line IS the level's lesson - no boxes.
+            if (def.levelNumber > 2)
+                return;
+
             // Contextual hints (always shown) placed at each mechanic's first
             // instance. Kept short so they read on a phone.
+            // "B" no longer exists on screen — the power button shows a
+            // picture of the power and only appears once an orb is held.
             if (def.powerUpOne.Length > 0)
-                AddHint(holder, "Red orb: the ember hero can now\ntap B to shoot fireballs!",
+                AddHint(holder, "Red orb: the ember hero gets a\nfireball button - tap it to shoot!",
                     World(def.powerUpOne[0]) + new Vector3(0, 2, 0), true, false);
             if (def.powerUpTwo.Length > 0)
-                AddHint(holder, "Blue orb: the wisp hero can tap B to\nbecome a platform to boost a partner",
+                AddHint(holder, "Blue orb: the wisp hero gets a crystal\nbutton - become a platform to boost!",
                     World(def.powerUpTwo[0]) + new Vector3(0, 2, 0), true, false);
             if (def.leverGroups.Length > 0)
                 AddHint(holder, "Touch a lever to extend its bridge",

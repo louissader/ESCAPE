@@ -1,4 +1,5 @@
 using UnityEngine;
+using IndieMarc.Platformer;
 
 /// <summary>
 /// Runtime driver for the on-screen controls prefab. Shows the layout for
@@ -40,9 +41,15 @@ public class TouchControlsUI : MonoBehaviour
     public float idleDelay = 1.5f;
     public float fadeSpeed = 4f;
 
+    [Header("Move-hold fade (playtest 9.3: arrows vanish while steering)")]
+    [Tooltip("Arrow-button alpha while the player is actively moving — the finger is already on them")]
+    public float movingAlpha = 0.12f;
+    public float moveFadeSpeed = 6f;
+
     ControlMode mode;
     CanvasGroup canvasGroup; // added at runtime; the baked prefab has none
     float lastHeldTime;
+    CanvasGroup[] swapMoveGroups, p1MoveGroups, p2MoveGroups; // arrow buttons only
 
     void Start()
     {
@@ -69,6 +76,12 @@ public class TouchControlsUI : MonoBehaviour
         Wire(p1Action, () => VirtualInputRouter.Get(1).PressAction());
         Wire(p2Jump, () => VirtualInputRouter.Get(2).PressJump());
         Wire(p2Action, () => VirtualInputRouter.Get(2).PressAction());
+
+        // Arrow buttons get their own CanvasGroups (multiplied under the
+        // root group) so steering can fade JUST the arrows, hard.
+        swapMoveGroups = MoveGroups(swapLeft, swapRight);
+        p1MoveGroups = MoveGroups(p1Left, p1Right);
+        p2MoveGroups = MoveGroups(p2Left, p2Right);
 
         ApplyMode();
         SaveSystem.OnControlModeChanged += OnControlModeChanged;
@@ -138,15 +151,22 @@ public class TouchControlsUI : MonoBehaviour
         // the SWAP button vanished for the rest of the level after any death
         // unless the player discovered tapping the inactive portrait.
         UpdateSwapButtonVisibility();
+        // Same per-frame rule for the power button: collecting an orb fires
+        // no event either (playtest 9: the button only exists once the hero
+        // actually holds a power).
+        UpdateActionButtonVisibility();
 
         if (mode == ControlMode.Swap)
         {
             WriteHolds(ActiveChannel(), swapLeft, swapDown, swapRight, swapJump, swapAction);
+            FadeMoveGroups(swapMoveGroups, ActiveChannel().move != 0f);
         }
         else
         {
             WriteHolds(VirtualInputRouter.Get(1), p1Left, p1Down, p1Right, p1Jump, p1Action);
             WriteHolds(VirtualInputRouter.Get(2), p2Left, p2Down, p2Right, p2Jump, p2Action);
+            FadeMoveGroups(p1MoveGroups, VirtualInputRouter.Get(1).move != 0f);
+            FadeMoveGroups(p2MoveGroups, VirtualInputRouter.Get(2).move != 0f);
         }
 
         UpdateIdleFade();
@@ -178,6 +198,29 @@ public class TouchControlsUI : MonoBehaviour
     static bool IsHeld(TouchButton b)
     {
         return b != null && b.IsHeld;
+    }
+
+    static CanvasGroup[] MoveGroups(params TouchButton[] buttons)
+    {
+        var groups = new System.Collections.Generic.List<CanvasGroup>(buttons.Length);
+        foreach (TouchButton b in buttons)
+        {
+            if (b == null) continue;
+            var g = b.GetComponent<CanvasGroup>();
+            if (g == null) g = b.gameObject.AddComponent<CanvasGroup>();
+            groups.Add(g);
+        }
+        return groups.ToArray();
+    }
+
+    /// <summary>While steering, the arrows melt to movingAlpha — the finger
+    /// is already on them, so they're pure clutter. Raycasts stay on.</summary>
+    void FadeMoveGroups(CanvasGroup[] groups, bool moving)
+    {
+        if (groups == null) return;
+        float target = moving ? movingAlpha : 1f;
+        foreach (CanvasGroup g in groups)
+            g.alpha = Mathf.MoveTowards(g.alpha, target, moveFadeSpeed * Time.unscaledDeltaTime);
     }
 
     static VirtualInputChannel ActiveChannel()
@@ -223,5 +266,41 @@ public class TouchControlsUI : MonoBehaviour
             (SwapModeController.Instance == null || SwapModeController.Instance.CanSwap);
         if (swapSwap.gameObject.activeSelf != canSwap)
             swapSwap.gameObject.SetActive(canSwap);
+    }
+
+    /// <summary>The power button only exists while its hero holds a power-up
+    /// (playtest 9). Hiding is safe mid-hold: WriteHolds reads an inactive
+    /// button as not-held. Wisp keeps hasPowerUp forever once collected, so
+    /// the button never vanishes while she is a platform.</summary>
+    void UpdateActionButtonVisibility()
+    {
+        if (mode == ControlMode.Swap)
+        {
+            SetShown(swapAction, ActiveHeroHasPower());
+        }
+        else
+        {
+            PlayerCharacterOne p1 = PlayerCharacterOne.Get(1);
+            PlayerCharacterTwo p2 = PlayerCharacterTwo.Get(2);
+            SetShown(p1Action, p1 != null && p1.can_shoot);
+            SetShown(p2Action, p2 != null && p2.HasPowerUp);
+        }
+    }
+
+    bool ActiveHeroHasPower()
+    {
+        if (VirtualInputRouter.ActivePlayerId == 1)
+        {
+            PlayerCharacterOne p1 = PlayerCharacterOne.Get(1);
+            return p1 != null && p1.can_shoot;
+        }
+        PlayerCharacterTwo p2 = PlayerCharacterTwo.Get(2);
+        return p2 != null && p2.HasPowerUp;
+    }
+
+    static void SetShown(TouchButton b, bool shown)
+    {
+        if (b != null && b.gameObject.activeSelf != shown)
+            b.gameObject.SetActive(shown);
     }
 }

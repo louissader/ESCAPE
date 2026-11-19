@@ -68,28 +68,3 @@ public class LavaRiser : MonoBehaviour
         Object.FindObjectOfType<GameState>()?.TriggerGameOver();
     }
 }
-
-/// <summary>Trigger zone that starts the riser + ride when a player crosses it.</summary>
-[RequireComponent(typeof(BoxCollider2D))]
-public class LavaRiserTrigger : MonoBehaviour
-{
-    public LavaRiser riser;
-    public MovingPlatform ride;   // the escape elevator: parked until the chase starts
-
-    void Awake()
-    {
-        GetComponent<BoxCollider2D>().isTrigger = true;
-    }
-
-    void OnTriggerEnter2D(Collider2D other)
-    {
-        if (other.CompareTag("Player") || other.CompareTag("PlayerTwo"))
-        {
-            if (riser != null)
-                riser.Activate();
-            if (ride != null)
-                ride.active = true;
-            Destroy(gameObject);
-        }
-    }
-}

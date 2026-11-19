@@ -125,7 +125,9 @@ namespace Escape.EditorAutomation
                 RectTransform settings = NewRect("SettingsPanel", safeArea);
                 Stretch(settings);
                 Image settingsDim = settings.gameObject.AddComponent<Image>();
-                settingsDim.color = new Color(0.02f, 0.09f, 0.13f, 0.97f);
+                // Fully opaque, same as HowToPlayBuilder's dim: at 0.97 the
+                // screen behind ghosted through the panel text.
+                settingsDim.color = new Color(0.02f, 0.09f, 0.13f, 1f);
                 SettingsPanel panel = settings.gameObject.AddComponent<SettingsPanel>();
 
                 // Row pitch is 144 across the whole panel: every row's hit

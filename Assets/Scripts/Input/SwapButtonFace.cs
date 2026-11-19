@@ -14,6 +14,11 @@ public class SwapButtonFace : MonoBehaviour
     public Sprite emberSprite; // player 1
     public Sprite wispSprite;  // player 2
 
+    [Header("Cartoon accents (playtest 9)")]
+    public Image rim;                                             // tinted to the hero you'd switch INTO
+    public Color emberAccent = new Color(1f, 0.55f, 0.25f, 0.95f);
+    public Color wispAccent = new Color(0.45f, 0.8f, 1f, 0.95f);
+
     void OnEnable()
     {
         SwapModeController.OnSwapped += OnSwapped;
@@ -37,5 +42,9 @@ public class SwapButtonFace : MonoBehaviour
         bool emberActive = VirtualInputRouter.ActivePlayerId == 1;
         portrait.sprite = emberActive ? wispSprite : emberSprite;
         portrait.enabled = portrait.sprite != null;
+        // The rim glows in the TARGET hero's color, so the button reads as
+        // "this is who you become" even before the portrait registers.
+        if (rim != null)
+            rim.color = emberActive ? wispAccent : emberAccent;
     }
 }

@@ -29,6 +29,16 @@ public class TutorialHint : MonoBehaviour
     bool shown;
     float shownAt;                           // Time.unscaledTime when the bubble appeared
 
+    // Two hint zones can overlap (e.g. a level's red and blue orbs sit a few
+    // tiles apart), and both bubbles rendering at once interleaves their text
+    // into soup (playtest 8). Only one bubble may be on screen: later hints
+    // queue and show when the active one is dismissed. A queue, not just
+    // OnTriggerStay2D re-tries: a hero can walk THROUGH a blocked zone and
+    // leave before the active bubble is dismissed, and that hint must still
+    // appear afterwards (playtest 9: the blue orb was never explained).
+    static TutorialHint activeHint;
+    static readonly System.Collections.Generic.List<TutorialHint> pendingHints = new();
+
     void Awake()
     {
         GetComponent<BoxCollider2D>().isTrigger = true;
@@ -38,12 +48,54 @@ public class TutorialHint : MonoBehaviour
             Destroy(gameObject);
     }
 
-    void OnTriggerEnter2D(Collider2D other)
+    void OnTriggerEnter2D(Collider2D other) { TryShow(other); }
+
+    // Stay, not just Enter: a hint deferred because another bubble was up
+    // still fires once that bubble is dismissed, as long as a hero remains
+    // inside the zone.
+    void OnTriggerStay2D(Collider2D other) { TryShow(other); }
+
+    void TryShow(Collider2D other)
     {
         if (shown || (!other.CompareTag("Player") && !other.CompareTag("PlayerTwo")))
             return;
+        if (activeHint != null && activeHint != this)
+        {
+            if (!pendingHints.Contains(this))
+                pendingHints.Add(this);
+            return;
+        }
+        Show();
+    }
+
+    void Show()
+    {
         shown = true;
+        activeHint = this;
+        pendingHints.Remove(this);
         ShowBubble();
+    }
+
+    /// <summary>Oldest queued hint shows as soon as the active one goes away.</summary>
+    static void PromoteNextPending()
+    {
+        while (pendingHints.Count > 0)
+        {
+            TutorialHint next = pendingHints[0];
+            pendingHints.RemoveAt(0);
+            if (next != null && !next.shown)
+            {
+                next.Show();
+                return;
+            }
+        }
+    }
+
+    void OnDestroy()
+    {
+        pendingHints.Remove(this);
+        if (activeHint == this)
+            activeHint = null;
     }
 
     // LateUpdate, not Update: the EventSystem raycasts this frame's touches
@@ -141,6 +193,11 @@ public class TutorialHint : MonoBehaviour
     {
         if (marksTutorialSeen)
             SaveSystem.TutorialSeen = true;
+        if (activeHint == this)
+            activeHint = null;
+        // Promote here, not in OnDestroy: scene teardown also destroys hints,
+        // and promoting during unload would spawn bubbles into a dying scene.
+        PromoteNextPending();
         Destroy(gameObject);
     }
 }

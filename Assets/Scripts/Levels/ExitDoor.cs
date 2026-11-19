@@ -169,7 +169,15 @@ public class ExitDoor : MonoBehaviour
 
         SwapModeController controller = SwapModeController.Instance;
         if (controller != null)
+        {
             controller.RequestSwap();
+            // Playtest 9.3: the silent auto-switch read as a glitch. Say
+            // what just happened and what to do next.
+            string partner = partnerId == 1 ? "EMBER" : "WISP";
+            if (ObjectiveBanner.Instance != null)
+                ObjectiveBanner.Instance.Flash(
+                    $"{(heroNumber == 1 ? "EMBER" : "WISP")} is in! Now controlling {partner} - get them to their door!");
+        }
     }
 
     static void CommitWin(ExitDoor initiator)

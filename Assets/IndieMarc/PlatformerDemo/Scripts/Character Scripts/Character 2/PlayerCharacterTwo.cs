@@ -74,6 +74,7 @@ namespace IndieMarc.Platformer
         private bool hasPowerUp = false;
         private bool isRectangleForm = false;
         private GameObject rectangleInstance;
+        private float form_notice_next = 0f;
 
         private static Dictionary<int, PlayerCharacterTwo> character_list = new Dictionary<int, PlayerCharacterTwo>();
 
@@ -163,6 +164,27 @@ namespace IndieMarc.Platformer
             if (hasPowerUp && action_press)
             {
                 ToggleForm();
+            }
+
+            // Playtest 9.5: switching onto Wisp while she IS a platform and
+            // then steering does nothing (controls are disabled in-form) -
+            // explain it instead of feeling broken. Only Wisp's own channel
+            // carries input here (touch routes to the active hero), so this
+            // never fires while piloting Ember. Throttled so a held stick
+            // doesn't restart the flash every frame.
+            if (isRectangleForm && controls != null)
+            {
+                bool steering = Mathf.Abs(controls.GetMove().x) > 0.01f || controls.GetJumpDown();
+                if (steering && Time.unscaledTime >= form_notice_next &&
+                    ObjectiveBanner.Instance != null)
+                {
+                    form_notice_next = Time.unscaledTime + 3f;
+                    bool swapMode = SwapModeController.Instance != null &&
+                                    SwapModeController.Instance.Mode == ControlMode.Swap;
+                    ObjectiveBanner.Instance.Flash(swapMode
+                        ? "WISP is a platform! SWITCH TO EMBER - or tap the crystal button."
+                        : "WISP is a platform! Tap her crystal button to change back.");
+                }
             }
 
             // Removed fall-below-level reset code
@@ -449,6 +471,9 @@ namespace IndieMarc.Platformer
             hasPowerUp = true;
         }
 
+        /// <summary>The power button UI hides itself until this is true.</summary>
+        public bool HasPowerUp => hasPowerUp;
+
         private void ToggleForm()
         {
             isRectangleForm = !isRectangleForm;
@@ -513,6 +538,19 @@ namespace IndieMarc.Platformer
 
                 // Disable Player 2's controls
                 disable_controls = true;
+
+                // Playtest 9.4: a frozen platform is nothing to pilot — in
+                // Swap mode, hand control straight to Ember so the boost
+                // flows without a manual switch. (Switch back to Wisp and
+                // tap her power button to revert.)
+                if (SwapModeController.Instance != null &&
+                    SwapModeController.Instance.Mode == ControlMode.Swap &&
+                    VirtualInputRouter.ActivePlayerId == player_id)
+                {
+                    SwapModeController.Instance.RequestSwap();
+                    if (ObjectiveBanner.Instance != null)
+                        ObjectiveBanner.Instance.Flash("WISP is a platform! Now controlling EMBER.");
+                }
             }
             else
             {

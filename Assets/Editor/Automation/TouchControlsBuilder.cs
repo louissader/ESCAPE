@@ -52,14 +52,18 @@ namespace Escape.EditorAutomation
                 Stretch(swap);
                 ui.swapLayout = swap.gameObject;
 
+                // Playtest 9.3: the crouch button is gone — nothing in the
+                // game uses down, and the two-button d-pad frees thumb room.
                 ui.swapLeft = DpadButton(swap, "Btn_DpadLeft", "<", 0);
-                ui.swapDown = DpadButton(swap, "Btn_DpadDown", "v", 1);
-                ui.swapRight = DpadButton(swap, "Btn_DpadRight", ">", 2);
+                ui.swapRight = DpadButton(swap, "Btn_DpadRight", ">", 1);
 
-                ui.swapJump = Button(swap, "Btn_A", "A", JumpSize,
+                // Playtest 9: "A"/"B" said nothing — the jump button says
+                // JUMP and the power button shows what the power DOES.
+                ui.swapJump = Button(swap, "Btn_A", "JUMP", JumpSize,
                     new Vector2(1, 0), new Vector2(-Margin, Margin), new Vector2(1, 0));
-                ui.swapAction = Button(swap, "Btn_B", "B", SmallSize,
+                ui.swapAction = Button(swap, "Btn_B", "", SmallSize,
                     new Vector2(1, 0), new Vector2(-Margin - JumpSize - DpadGap, Margin), new Vector2(1, 0));
+                StylePowerButton(ui.swapAction, 0);
                 // Swap sits directly above A: thumb-reachable without leaving jump.
                 ui.swapSwap = Button(swap, "Btn_Swap", "SWITCH TO", SmallSize,
                     new Vector2(1, 0), new Vector2(-Margin - 20f, Margin + JumpSize + DpadGap), new Vector2(1, 0));
@@ -90,25 +94,28 @@ namespace Escape.EditorAutomation
                 // audit's Margin 96 / gap 32 spacing proposal) the row grows
                 // to 912 units and no longer fits half a 4:3 canvas -
                 // re-verify this arithmetic before changing them.
-                float dpadEnd = Margin + 3f * DpadSize + 2f * DpadGap; // 620
-                float jumpX = dpadEnd + DpadGap;                       // 636
-                float actionX = jumpX + (DpadSize - SmallSize) / 2f;   // 646, B centred over A
+                // Two-button d-pad (crouch removed, playtest 9.3): the row
+                // shrank by DpadSize + DpadGap = 196 units, so the 4:3
+                // overlap arithmetic above now clears with huge margin.
+                float dpadEnd = Margin + 2f * DpadSize + 1f * DpadGap; // 424
+                float jumpX = dpadEnd + DpadGap;                       // 440
+                float actionX = jumpX + (DpadSize - SmallSize) / 2f;   // 450, B centred over A
 
                 ui.p1Left = DpadButton(coop, "P1_DpadLeft", "<", 0);
-                ui.p1Down = DpadButton(coop, "P1_DpadDown", "v", 1);
-                ui.p1Right = DpadButton(coop, "P1_DpadRight", ">", 2);
-                ui.p1Jump = Button(coop, "P1_A", "A", DpadSize,
+                ui.p1Right = DpadButton(coop, "P1_DpadRight", ">", 1);
+                ui.p1Jump = Button(coop, "P1_A", "JUMP", DpadSize,
                     new Vector2(0, 0), new Vector2(jumpX, Margin), new Vector2(0, 0));
-                ui.p1Action = Button(coop, "P1_B", "B", SmallSize,
+                ui.p1Action = Button(coop, "P1_B", "", SmallSize,
                     new Vector2(0, 0), new Vector2(actionX, Margin + DpadSize + DpadGap), new Vector2(0, 0));
+                StylePowerButton(ui.p1Action, 1);
 
                 ui.p2Right = MirroredDpadButton(coop, "P2_DpadRight", ">", 0);
-                ui.p2Down = MirroredDpadButton(coop, "P2_DpadDown", "v", 1);
-                ui.p2Left = MirroredDpadButton(coop, "P2_DpadLeft", "<", 2);
-                ui.p2Jump = Button(coop, "P2_A", "A", DpadSize,
+                ui.p2Left = MirroredDpadButton(coop, "P2_DpadLeft", "<", 1);
+                ui.p2Jump = Button(coop, "P2_A", "JUMP", DpadSize,
                     new Vector2(1, 0), new Vector2(-jumpX, Margin), new Vector2(1, 0));
-                ui.p2Action = Button(coop, "P2_B", "B", SmallSize,
+                ui.p2Action = Button(coop, "P2_B", "", SmallSize,
                     new Vector2(1, 0), new Vector2(-actionX, Margin + DpadSize + DpadGap), new Vector2(1, 0));
+                StylePowerButton(ui.p2Action, 2);
 
                 // Faint center divider so each player owns a visible half.
                 RectTransform divider = NewRect("Divider", coop);
@@ -211,28 +218,89 @@ namespace Escape.EditorAutomation
         {
             RectTransform rect = (RectTransform)swapButton.transform;
 
+            // Playtest 9: the 24pt bold label overflowed the 160px button.
+            // Auto-size inside real margins instead of a fixed size, so the
+            // text can never touch the rim again.
             var label = rect.Find("Label").GetComponent<TextMeshProUGUI>();
             label.text = "SWITCH TO";
-            label.fontSize = 24f;
+            label.enableAutoSizing = true;
+            label.fontSizeMax = 19f;   // playtest 9.3: must read smaller than the button
+            label.fontSizeMin = 12f;
             label.alignment = TextAlignmentOptions.Top;
             label.enableWordWrapping = false;
+            label.margin = new Vector4(2, 6, 2, 0);
             RectTransform labelRect = (RectTransform)label.transform;
-            labelRect.offsetMin = new Vector2(4, 0);
-            labelRect.offsetMax = new Vector2(-4, -12);
+            labelRect.offsetMin = new Vector2(8, 0);
+            labelRect.offsetMax = new Vector2(-8, -8);
 
             RectTransform portraitRect = NewRect("Portrait", rect);
             portraitRect.anchorMin = portraitRect.anchorMax = new Vector2(0.5f, 0f);
             portraitRect.pivot = new Vector2(0.5f, 0f);
             portraitRect.anchoredPosition = new Vector2(0, 12);
             portraitRect.sizeDelta = new Vector2(66, 96); // hero frames are 16x24
+            // Cartoon pass: a slight tilt + idle bob makes the portrait feel
+            // like a sticker, not a form field. UIPulse animates only this
+            // child — TouchButton owns the button root's scale.
+            portraitRect.localRotation = Quaternion.Euler(0f, 0f, -6f);
             Image portrait = portraitRect.gameObject.AddComponent<Image>();
             portrait.preserveAspect = true;
             portrait.raycastTarget = false;
+            UIPulse pulse = portraitRect.gameObject.AddComponent<UIPulse>();
+            pulse.scaleAmplitude = 0.06f;
+            pulse.speed = 2.2f;
 
             SwapButtonFace face = rect.gameObject.AddComponent<SwapButtonFace>();
             face.portrait = portrait;
             face.emberSprite = HeroIdleSprite("hero1_ember");
             face.wispSprite = HeroIdleSprite("hero2_wisp");
+            // The rim glows in the target hero's color (set live by the face).
+            face.rim = rect.Find("Rim").GetComponent<Image>();
+        }
+
+        /// <summary>
+        /// Playtest 9: "B" said nothing — the power button face is a picture
+        /// of what the power does (fireball / crystal platform), kept in sync
+        /// with the owning hero by ActionButtonFace. playerId 0 follows the
+        /// active hero (swap mode); 1/2 pins it (co-op).
+        /// </summary>
+        static void StylePowerButton(TouchButton button, int playerId)
+        {
+            RectTransform rect = (RectTransform)button.transform;
+
+            RectTransform iconRect = NewRect("PowerIcon", rect);
+            iconRect.anchorMin = iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+            iconRect.pivot = new Vector2(0.5f, 0.5f);
+            iconRect.anchoredPosition = Vector2.zero;
+            iconRect.sizeDelta = new Vector2(96, 96);
+            Image icon = iconRect.gameObject.AddComponent<Image>();
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+
+            ActionButtonFace face = rect.gameObject.AddComponent<ActionButtonFace>();
+            face.icon = icon;
+            face.emberPowerSprite = FireballSprite();
+            face.wispPowerSprite = CrystalSlabSprite();
+            face.playerId = playerId;
+        }
+
+        static Sprite FireballSprite()
+        {
+            GameObject fire = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/GrottoEscapeArtwork/Prefabs/Misc/Fire.prefab");
+            SpriteRenderer sr = fire != null ? fire.GetComponentInChildren<SpriteRenderer>() : null;
+            if (sr != null && sr.sprite != null)
+                return sr.sprite;
+            Debug.LogWarning("[TouchControlsBuilder] fireball sprite missing — Ember power icon stays empty");
+            return null;
+        }
+
+        static Sprite CrystalSlabSprite()
+        {
+            foreach (Object o in AssetDatabase.LoadAllAssetsAtPath("Assets/Art/Generated/Props/crystal_slab.png"))
+                if (o is Sprite s && s.name == "crystal_slab_crystal_slab_0")
+                    return s;
+            Debug.LogWarning("[TouchControlsBuilder] crystal_slab frame missing — Wisp power icon stays empty");
+            return null;
         }
 
         static Sprite HeroIdleSprite(string sheet)
@@ -294,6 +362,17 @@ namespace Escape.EditorAutomation
             TextMeshProUGUI text = textRect.gameObject.AddComponent<TextMeshProUGUI>();
             text.text = label;
             text.fontSize = size * 0.52f;
+            // Single glyphs ("<", ">") keep the big fixed size; word labels
+            // ("JUMP") get a clearly smaller cap (playtest 9.3: autosized
+            // words still visually overpowered the ghost buttons) and
+            // auto-shrink inside margins so they can't touch the rim.
+            if (label.Length > 1)
+            {
+                text.enableAutoSizing = true;
+                text.fontSizeMax = size * 0.26f;
+                text.fontSizeMin = 16f;
+                text.margin = new Vector4(14, 10, 14, 10);
+            }
             text.fontStyle = FontStyles.Bold;
             text.alignment = TextAlignmentOptions.Center;
             // Light label + dark TMP outline: with the fill at 0.22 the

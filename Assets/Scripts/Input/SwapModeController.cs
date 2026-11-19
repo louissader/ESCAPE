@@ -75,6 +75,13 @@ public class SwapModeController : MonoBehaviour
         CacheTargetGroup();
         ApplyMode(true);
         SaveSystem.OnControlModeChanged += OnControlModeChanged;
+
+        // Early levels teach the new tap-to-switch verb with a permanent
+        // floaty over the parked hero (it self-hides in Co-op / while
+        // swapping is impossible, so spawning unconditionally is safe).
+        int level = SceneRouter.CurrentLevelNumber();
+        if (level >= 1 && level <= 4)
+            HeroSwitchFloaty.Spawn();
     }
 
     /// <summary>Applies the current mode to both characters. In Co-op both
@@ -123,6 +130,61 @@ public class SwapModeController : MonoBehaviour
             player2Gone = true;
             OnCharacterUncontrollable(2);
         }
+
+        CheckHeroTapSwap();
+    }
+
+    /// <summary>Playtest 9.3: tapping the hero you WANT also switches to
+    /// them — direct manipulation beside the SWITCH TO button. Generous
+    /// radius: the sprites are 1x1.5 world units at gameplay zoom. Taps on
+    /// the on-screen controls are filtered by the same UI-raycast guard the
+    /// tutorial hints use.</summary>
+    const float TapSwapRadius = 1.6f;
+
+    void CheckHeroTapSwap()
+    {
+        if (!CanSwap)
+            return;
+
+        Vector2 screenPos;
+        if (Input.touchCount > 0)
+        {
+            Touch touch = Input.GetTouch(0);
+            if (touch.phase != TouchPhase.Began ||
+                (UnityEngine.EventSystems.EventSystem.current != null &&
+                 UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(touch.fingerId)))
+                return;
+            screenPos = touch.position;
+        }
+#if UNITY_EDITOR
+        else if (Input.GetMouseButtonDown(0) &&
+                 (UnityEngine.EventSystems.EventSystem.current == null ||
+                  !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()))
+        {
+            screenPos = Input.mousePosition;
+        }
+#endif
+        else
+        {
+            return;
+        }
+
+        Camera cam = Camera.main;
+        if (cam == null)
+            return;
+        Vector2 world = cam.ScreenToWorldPoint(screenPos);
+
+        int inactiveId = VirtualInputRouter.ActivePlayerId == 1 ? 2 : 1;
+        Transform inactive = inactiveId == 1
+            ? (player1 != null ? player1.transform : null)
+            : (player2 != null ? player2.transform : null);
+        if (inactive == null)
+            return;
+
+        // Centre of the 1.5-tall sprite sits ~0.75 above the feet.
+        Vector2 center = (Vector2)inactive.position + Vector2.up * 0.75f;
+        if (Vector2.Distance(world, center) <= TapSwapRadius)
+            RequestSwap();
     }
 
     public ControlMode Mode { get { return mode; } }
